@@ -1,8 +1,20 @@
-// Electron 主进程 与 渲染进程 交互的桥梁
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
+contextBridge.exposeInMainWorld("OneBotApi", {
 
-// 在window对象下导出只读对象
-contextBridge.exposeInMainWorld("plugin_template", {
+    ipcRenderer_OneBot: ipcRenderer,
+
+    webContentsId: "2",
+
+    IPCAction: ipcRenderer.sendSync('one_bot_api_get_actions'),
+
+    // (() => {
+    //     let { webContentsId } = ipcRenderer.sendSync("___!boot")
+    //     return webContentsId ? webContentsId : "2";
+    // })(),
+
+    ipcRenderer_ON_OneBot: (channel, callback) => ipcRenderer.on(channel, callback),
+
+    ipcRenderer_ONCE_OneBot: (channel, callback) => ipcRenderer.once(channel, callback),
 
 });

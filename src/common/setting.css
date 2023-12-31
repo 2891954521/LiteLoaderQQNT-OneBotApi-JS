@@ -1,0 +1,121 @@
+/* 按钮 - 禁用 */
+@media (prefers-color-scheme: light) {
+    button[disabled] {
+        background: #dddddd !important;
+        cursor: not-allowed;
+        pointer-events:none;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    button[disabled] {
+        background: #4b4b4b !important;
+        cursor: not-allowed;
+        pointer-events:none;
+    }
+}
+
+/* 模态框 */
+.config_view .modal-window {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 999;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.config_view .modal-dialog {
+    width: 480px;
+    border-radius: 8px;
+    /* Linux样式兼容：--fg_white */
+    background-color: var(--bg_bottom_standard, var(--fg_white));
+}
+
+.config_view .modal-dialog header {
+    font-size: 12px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+}
+
+.config_view .modal-dialog main {
+    padding: 0px 16px;
+}
+
+.config_view .modal-dialog main p {
+    margin: 8px 0px;
+}
+
+.config_view .modal-dialog footer {
+    height: 30px;
+    display: flex;
+    justify-content: right;
+    align-items: center;
+}
+
+.config_view .modal-dialog .q-icon {
+    width: 22px;
+    height: 22px;
+    margin: 8px;
+}
+
+/* 版本号 */
+.config_view .versions .wrap.current {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 0px;
+}
+
+.config_view .versions .wrap.current > div {
+    flex: 1;
+    margin: 0px 10px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+/* 数据目录 */
+.config_view .input_box {
+    align-self: normal;
+    flex: 1;
+    border-radius: 4px;
+    padding-left: 3px;
+    margin-right: 16px;
+    transition: all 100ms ease-out;
+}
+
+.config_view .input_box:focus {
+    padding-left: 7px;
+    background-color: var(--overlay_active);
+}
+
+@media (prefers-color-scheme: light) {
+    .input_box {
+        background-color: rgb(234, 234, 234);
+    }
+    .text_color {
+        color: black;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .input_box {
+        background-color: rgb(53, 53, 53);
+    }
+    .text_color {
+        color: white;
+    }
+}
+
+
+.config_view .plugins .extra-information a:hover {
+    color: var(--hover-link);
+}
+
+.config_view .plugins .extra-information a:active {
+    color: var(--press-link);
+}

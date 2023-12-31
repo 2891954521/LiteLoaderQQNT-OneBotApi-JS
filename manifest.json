@@ -1,21 +1,21 @@
 {
     "manifest_version": 3,
     "type": "extension",
-    "name": "插件模板",
-    "slug": "plugin_template",
-    "description": "LiteLoaderQQNT的插件模板",
+    "name": "OneBotApi-JS",
+    "slug": "OneBotApi-JS",
+    "description": "在LiteLoaderQQNT上添加OneBot协议支持",
     "version": "0.1.0",
     "thumbnail": "./icon.png",
     "author": {
-        "name": "LiteLoaderQQNT",
-        "link": "https://github.com/LiteLoaderQQNT"
+        "name": "GreenDog",
+        "link": "https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS"
     },
     "repository": {
-        "repo": "LiteLoaderQQNT/LiteLoaderQQNT-Plugin-Template",
+        "repo": "2891954521/LiteLoaderQQNT-OneBotApi-JS",
         "branch": "main",
         "use_release": {
             "tag": "latest",
-            "name": "Plugin-Template.zip"
+            "name": "release.zip"
         }
     },
     "platform": [
@@ -25,7 +25,7 @@
     ],
     "injects": {
         "renderer": "./src/renderer.js",
-        "main": "./src/main.js",
+        "main": "./src/main/main.js",
         "preload": "./src/preload.js"
     }
 }

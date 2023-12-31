@@ -51,8 +51,6 @@ function onLoad(plugin, liteloader) {
         utils.saveSetting(setting);
     });
 
-    ipcMain.on(IPCAction.ACTION_POST_ONEBOT_DATA, (event, arg) => postHttpData(arg));
-
     ipcMain.on(IPCAction.ACTION_UPDATE_SELF_INFO, (event, selfInfo) => Data.selfInfo = selfInfo);
     ipcMain.on(IPCAction.ACTION_UPDATE_GROUPS, (event, groups) => Data.groups = groups);
 
@@ -123,7 +121,6 @@ function patchedSend(channel, ...args){
                 // 监听新消息
                 const messages = args[1][0].payload?.msgList;
                 if(messages) messageModel.handleNewMessage(messages);
-                log(JSON.stringify(messages));
                 break;
 
             case "nodeIKernelBuddyListener/onBuddyListChange":
@@ -162,7 +159,7 @@ function patchedSend(channel, ...args){
                 groupList.forEach((group) => groups[group.groupCode] = group);
 
                 const groupsCount = Object.keys(groups).length;
-                if(groupsCount == 0) break;
+                if(groupsCount === 0) break;
 
                 Data.groups = groups;
 
@@ -172,7 +169,7 @@ function patchedSend(channel, ...args){
 
             case "nodeIKernelMsgListener/onRichMediaDownloadComplete":
                 // 媒体文件下载完成
-                postNoticeData({
+                messageModel.postNoticeData({
                     notice_type: "download_finish",
                     file: {
                         msgId: args[1][0].payload.notifyInfo.msgId,
@@ -202,51 +199,6 @@ function patchedSend(channel, ...args){
         }
     }
 }
-
-
-// ===================
-// HTTP上报模块
-// ===================
-
-/**
- * 上报HTTP消息
- * @param {*} postData 
- */
-function postHttpData(postData){
-    try{
-        fetch(Setting.setting.hosts[0], {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(postData)
-        }).then((res) => {
-            
-        }, (err) => {
-            log(`http report fail: ${err}\n${JSON.stringify(postData, null, 2)}`);
-        });
-    }catch(e){
-        log(e.toString())
-    }
-}
-
-// /**
-//  * 发送通知上报
-//  * @param {*} postData 
-//  */
-function postNoticeData(postData){
-    postData['time'] = 0;
-    postData['post_type'] = "notice";
-    
-    postData['self_id'] = Data.selfInfo.uin;
-
-    postHttpData(postData);
-}
-
-// ===================
-// 
-// ===================
-
 
 
 function log(...args) {

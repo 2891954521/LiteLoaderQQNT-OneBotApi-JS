@@ -5,11 +5,6 @@ module.exports = {
          */
         ACTION_GET_CONFIG: "one_bot_api_get_config",
         ACTION_SET_CONFIG: "one_bot_api_set_config",
-
-        /**
-         * 上报HTTP消息
-         */
-        ACTION_POST_ONEBOT_DATA: "one_bot_api_post_onebot_data",
             
         
         ACTION_SEND_MSG: "one_bot_api_send_msg",

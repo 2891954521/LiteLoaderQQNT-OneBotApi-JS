@@ -2,7 +2,7 @@
  * 消息处理模块
  */
 
-const { Data, RuntimeData } = require('../main/core');
+const { Data, RuntimeData, Setting } = require('../main/core');
 const { IPCAction } = require("../common/const");
 
 /**
@@ -97,25 +97,25 @@ function handleNewMessage(messages){
 
 		let msgData = {
 			time: 0,
-			self_id: selfQQ,
+			self_id: Data.selfInfo.uin,
 			post_type: "message",
 			message_id: message.msgId,
 			message: []
 		}
 
-        if(message.chatType === 1){
+		if(message.chatType === 1){
 			msgData["message_type"] = "private";
 			msgData["sub_type"] = "friend";
 
 			msgData["user_id"] = Data.getUserByUid(message.senderUid).uin;
-            
+
 		}else if(message.chatType === 2){
 			msgData["message_type"] = "group";
 			msgData["sub_type"] = "normal";
 
 			msgData["group_id"] = message.peerUid;
 			msgData["user_id"] = Data.getUserByUid(message.senderUid).uin;
-		} 
+		}
 
 		for(let element of message.elements){
 			let msgChain = { };
@@ -150,19 +150,57 @@ function handleNewMessage(messages){
 					elementId: element.elementId
 				};
 			}else{
-                msgChain = {
-                    type: "unsupportType",
-                    data: element
-                }
-            }
+				msgChain = {
+					type: "unsupportType",
+					data: element
+				}
+			}
 
 			msgData["message"].push(msgChain)
 		}
 
-		ipcRenderer.send(IPCAction.ACTION_POST_ONEBOT_DATA, msgData);
+		postHttpData(msgData);
 	}
 }
 
+// ===================
+// HTTP上报模块
+// ===================
+
+/**
+ * 上报HTTP消息
+ * @param {*} postData
+ */
+function postHttpData(postData){
+	try{
+		fetch(Setting.setting.hosts[0], {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(postData)
+		}).then((res) => {
+
+		}, (err) => {
+			log(`http report fail: ${err}\n${JSON.stringify(postData, null, 2)}`);
+		});
+	}catch(e){
+		log(e.toString())
+	}
+}
+
+// /**
+//  * 发送通知上报
+//  * @param {*} postData
+//  */
+function postNoticeData(postData){
+	postData['time'] = 0;
+	postData['post_type'] = "notice";
+
+	postData['self_id'] = Data.selfInfo.uin;
+
+	postHttpData(postData);
+}
 
 
 function log(...args){
@@ -172,5 +210,8 @@ function log(...args){
 module.exports = {
     sendMessage,
 
-    handleNewMessage
+    handleNewMessage,
+
+	postHttpData,
+	postNoticeData,
 }

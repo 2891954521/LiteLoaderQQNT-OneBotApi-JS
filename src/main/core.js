@@ -2,6 +2,10 @@
  * 模块核心
  */
 
+const crypto = require('crypto');
+
+const {IPCAction} = require("../common/const");
+
 /**
  * 数据
  */
@@ -101,12 +105,42 @@ class RuntimeData{
      */
     static isDebugMode = false;
 
-    
+    static ntCallCallback = { };
+
+    static getUserInfoCallback = { };
+
     /**
      * 主界面是否已加载
      */
     static isLoaded(){
         return this.mainPage != null;
+    }
+
+    static async ntCall(eventName, cmdName, args){
+        return await new Promise((resolve) => {
+            const uuid = crypto.randomUUID();
+            this.ntCallCallback[uuid] = resolve;
+            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
+                "eventName": eventName,
+                "cmdName": cmdName,
+                "args": args,
+                "uuid": uuid
+            });
+        });
+    }
+
+    /**
+     * 从网络拉取最新的用户信息
+     */
+    static async getUserInfoByUid(uid){
+        return await new Promise((resolve) => {
+            this.getUserInfoCallback[uid.toString()] = resolve;
+            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
+                "eventName": "ns-ntApi",
+                "cmdName": "nodeIKernelProfileService/getUserDetailInfo",
+                "args": [ { "uid": uid.toString() }, undefined ]
+            });
+        });
     }
 }
 

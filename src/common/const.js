@@ -6,7 +6,8 @@ module.exports = {
         ACTION_GET_CONFIG: "one_bot_api_get_config",
         ACTION_SET_CONFIG: "one_bot_api_set_config",
             
-        
+        ACTION_LOG: "one_bot_api_log",
+
         ACTION_SEND_MSG: "one_bot_api_send_msg",
         ACTION_RECALL_MSG: "one_bot_api_recall_msg",
 

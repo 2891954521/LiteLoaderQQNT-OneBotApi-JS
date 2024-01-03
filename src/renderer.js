@@ -8,33 +8,36 @@ const pluginPath = LiteLoader.plugins['OneBotApi-JS'].path.plugin;
 /**
  * 是否处于调试模式
  */
-// let isDebug = false;
+let isDebug = false;
 
 function loadMain(){
+	if(isDebug) log('loadMain');
 
 	const IPCAction = window.OneBotApi.IPCAction;
 
 	// 更新好友列表
-	ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]).then((args) => {});
+	ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]);
 
-	// 加载群列表	
-	ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]).then((args) => {});
+	// 加载群列表
+	ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]);
 
 	// 获取自身信息
-	ntCall("ns-BusinessApi", "fetchAuthData", []).then((selfInfo) => {
-		if(!selfInfo) return;
-		ipcRenderer.send(IPCAction.ACTION_UPDATE_SELF_INFO, selfInfo);
+	// ntCall("ns-BusinessApi", "fetchAuthData", []).then((selfInfo) => {
+	// 	if(!selfInfo) return;
+	// 	ipcRenderer.send(IPCAction.ACTION_UPDATE_SELF_INFO, selfInfo);
+	// });
+
+	ipcRendererOn(IPCAction.ACTION_NT_CALL, (event, data) => {
+		ntCall(data['eventName'], data['cmdName'], data['args'], 'uuid' in data ? data['uuid'] : null)
 	});
 
-	ipcRendererOn(IPCAction.ACTION_NT_CALL, (event, postData) => {
-		ntCall(postData['eventName'], postData['cmdName'], postData['args']).then((a) => {
-		});
-	});
+	if(isDebug) log('loadMain done');
 }
 
 function onLoad(){
 	const url = location.href;
 	if(url.includes("/index.html") && url.includes("#/main/message")){
+		if(isDebug) log('call loadMain');
 		ipcRenderer.send('one_bot_api_load_main_page');
 		loadMain();
 	}else{
@@ -43,6 +46,7 @@ function onLoad(){
 			// 检测是否为主界面
 			if(url.includes("/index.html") && url.includes("#/main/message")){
 				navigation.removeEventListener("navigatesuccess", func);
+				if(isDebug) log('call loadMain navigation');
 				ipcRenderer.send('one_bot_api_load_main_page')
 				loadMain();
 			}
@@ -108,38 +112,23 @@ async function onConfigView(view){
 }
 
 
-function ntCall(eventName, cmdName, args){
-	return new Promise(async(resolve, reject) => {
-		let webContentsId = window.OneBotApi.webContentsId;
-
-		try{
-			const uuid = crypto.randomUUID();
-
-			ipcRendererOnce(`LL_DOWN_${uuid}`, (event, data) => {
-				log(`ipcRendererOn: LL_DOWN_${uuid}: ${data}`);
-				resolve(data);
-			});
-
-			ipcRenderer.send('one_bot_api_add_callback', uuid, webContentsId);
-
-			ipcRenderer.send(
-				`IPC_UP_${webContentsId}`,
-				{
-					type: "request",
-					callbackId: uuid,
-					eventName: `${eventName}-${webContentsId}`,
-				},
-				[cmdName, ...args]
-			);
-		}catch(error){
-			log(error);
-		}
-	});
+function ntCall(eventName, cmdName, args, uuid = null){
+	const webContentsId = window.OneBotApi.webContentsId;
+	ipcRenderer.send(
+		`IPC_UP_${webContentsId}`,
+		{
+			type: "request",
+			callbackId: uuid === null ? crypto.randomUUID() : uuid,
+			eventName: `${eventName}-${webContentsId}`,
+		},
+		[cmdName, ...args]
+	);
 }
 
 
 function log(...args){
 	console.log("\x1b[32m[OneBotAPI-renderer]\x1b[0m", ...args);
+	ipcRenderer.send("one_bot_api_log", args);
 }
 
 

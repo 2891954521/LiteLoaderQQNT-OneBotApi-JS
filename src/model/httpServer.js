@@ -27,8 +27,45 @@ const handleURL = {
     /**
      * 调用ntCall
      */
-    '/ntCall': (url, postData) => {
-        RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, postData);
+    '/ntCall': async (url, postData) => {
+        return {
+            code: 200,
+            msg: "OK",
+            data: await RuntimeData.ntCall(postData['eventName'], postData['cmdName'], postData['args'])
+        };
+    },
+
+    /**
+     * 获取用户信息
+     *
+     */
+    '/getUserByUid': async (url, postData) => {
+        return {
+            code: 200,
+            msg: "OK",
+            data: await RuntimeData.getUserInfoByUid(postData['uid'])
+        };
+    },
+
+    /**
+     * 发送消息
+     * {
+     *   "user_id" or "group_id": 123456,
+     *   "message": "test"
+     * }
+     *   or
+     * {
+     *   "user_id" or "group_id": 123456,
+     *   "message": [
+     *     "type": "text", 
+     *     "data": [
+     *         "text": "test"
+     *     ]
+     *   ]
+     * }
+     */
+    '/send_msg': (url, postData) => {
+        MessageModel.sendMessage(postData);
         return { code: 200, msg: "OK" };
     },
 
@@ -113,14 +150,85 @@ const handleURL = {
                 }
             ]
         }
-        log(JSON.stringify(obj))
 
-        RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, obj)
+        RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, obj);
 
         return { code: 200, msg: "OK" }
-    }
+    },
 
-    // send_msg 发送消息
+
+    /**
+     * 获取登录号信息
+     */
+    '/get_login_info': (url, postData) => {
+        return {
+            code: 200,
+            msg: "OK",
+            data: Data.selfInfo
+        };
+    },
+
+    /**
+     * 获取好友列表
+     * result:
+     * {
+     *   code: 200,
+     *   msg: "OK",
+     *   data: [
+     *     {
+     *       user_id: QQ号,
+     *       nickname: 昵称,
+     *       remark: 备注
+     *     },
+     *     ...
+     *   ]
+     * }
+     */
+    '/get_friend_list': (url, postData) => {
+        return {
+            code: 200,
+            msg: "OK",
+            data: Object.values(Data.friends).map(friend => {
+                return {
+                    user_id: friend.uin,
+                    nickname: friend.nick,
+                    remark: friend.remark
+                }
+            })
+        };
+    },
+
+    /**
+     * 处理加好友请求
+     * {
+     *     "flag": 	加好友请求的 flag（需从上报的数据中获得）
+     *     "approve": 是否同意请求(true/false)
+     * }
+     */
+    '/set_friend_add_request': async (url, postData) => {
+        if('flag' in postData && 'approve' in postData){
+            return {
+                code: 200,
+                msg: "OK",
+                data: await RuntimeData.ntCall(
+                    "ns-ntApi",
+                    "nodeIKernelBuddyService/approvalFriendRequest",
+                    [{
+                        "approvalInfo":{
+                            "friendUid": postData["flag"],
+                            "accept": postData['approve']
+                        }
+                    }, null]
+                )
+            };
+        }else{
+            return { code: 400, msg: "Must provide 'flag' and 'approve'." }
+        }
+    },
+
+    // get_group_info 获取群信息
+    // get_group_list 获取群列表
+
     // delete_msg 撤回消息
     // get_msg 获取消息
     // get_forward_msg 获取合并转发消息
@@ -135,13 +243,8 @@ const handleURL = {
     // set_group_name 设置群名
     // set_group_leave 退出群组
     // set_group_special_title 设置群组专属头衔
-    // set_friend_add_request 处理加好友请求
     // set_group_add_request 处理加群请求／邀请
-    // get_login_info 获取登录号信息
     // get_stranger_info 获取陌生人信息
-    // get_friend_list 获取好友列表
-    // get_group_info 获取群信息
-    // get_group_list 获取群列表
     // get_group_member_info 获取群成员信息
     // get_group_member_list 获取群成员列表
     // get_group_honor_info 获取群荣誉信息
@@ -168,50 +271,53 @@ function startHttpServer(port, restart = false){
         }
     }
 
-    server = http.createServer((req, res) => {
-        if (req.method === 'POST'){
-            let body = '';
-            req.on('data', (chunk) => { body += chunk; });
-            req.on('end', () => {
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                
-                try{
-                    let contentType = req.headers['content-type'];
-                    let form;
-
-                    if(contentType === "application/json"){
-                        form = body !== "" ? JSON.parse(body) : {}
-
-                    }else if(contentType === "application/x-www-form-urlencoded"){
-                        form = querystring.parse(body);
-
-                    }else if(contentType === "multipart/form-data"){
-                        res.end('{ "code": 403, "msg": "Unsupport content type" }');
-                        return;
-
-                    }else{
-                        res.end('{ "code": 400, "msg": "Wrong content type" }');
-                        return;
-                    }
-
-                    const handler = handleURL[req.url];
-                    if(handler){
-                        res.end(JSON.stringify(handler(req.url, form)));
-                    }else{
-                        res.end('{ "code": 404, "msg": "Not Found" }');
-                    }
-                }catch(error){
-                    log(error);
-                    res.end(`{ "code": 500, "msg": ${error.toString()} }`);
-                }
-
-            });
-        }else{
+    server = http.createServer(async (req, res) => {
+        if(req.method !== 'POST'){
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/plain');
             res.end('Http server is running');
+            return;
         }
+
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', async() => {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+
+            try{
+                let contentType = req.headers['content-type'];
+                let form;
+
+                if(contentType === "application/json"){
+                    form = body !== "" ? JSON.parse(body) : {}
+
+                }else if(contentType === "application/x-www-form-urlencoded"){
+                    form = querystring.parse(body);
+
+                }else if(contentType === "multipart/form-data"){
+                    res.end('{ "code": 403, "msg": "Unsupport content type" }');
+                    return;
+
+                }else{
+                    res.end('{ "code": 400, "msg": "Wrong content type" }');
+                    return;
+                }
+
+                log(`url: ${req.url}`);
+
+                const handler = handleURL[req.url];
+                if(handler){
+                    res.end(JSON.stringify(await handler(req.url, form)));
+                }else{
+                    res.end('{ "code": 404, "msg": "Not Found" }');
+                }
+            }catch(error){
+                log(error);
+                res.end(`{ "code": 500, "msg": ${error.toString()} }`);
+            }
+        });
+
     });
 
     server.listen(port, '0.0.0.0', () => { 

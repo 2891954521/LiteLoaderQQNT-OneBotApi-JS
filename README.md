@@ -20,13 +20,19 @@
 
 ### 支持的API
 
+- [X] send_msg
 - [X] send_group_msg
 - [X] send_private_msg
 
-### 支持上报的消息格式
+- [ ] get_login_info
+- [X] get_friend_list
+- [X] set_friend_add_request
+
+### 支持上报的消息
 
 - [X] 文字
 - [X] at
+- [X] 好友请求
 
 ### 支持发送的消息格式
 

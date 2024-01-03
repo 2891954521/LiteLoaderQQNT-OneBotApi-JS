@@ -189,16 +189,25 @@ function postHttpData(postData){
 	}
 }
 
-// /**
-//  * 发送通知上报
-//  * @param {*} postData
-//  */
+/**
+ * 发送通知上报
+ * @param {*} postData
+ */
 function postNoticeData(postData){
 	postData['time'] = 0;
-	postData['post_type'] = "notice";
-
 	postData['self_id'] = Data.selfInfo.uin;
+	postData['post_type'] = "notice";
+	postHttpData(postData);
+}
 
+/**
+ * 发送通知上报
+ * @param {*} postData
+ */
+function postRequestData(postData){
+	postData['time'] = 0;
+	postData['self_id'] = Data.selfInfo.uin;
+	postData['post_type'] = "request";
 	postHttpData(postData);
 }
 
@@ -214,4 +223,5 @@ module.exports = {
 
 	postHttpData,
 	postNoticeData,
+	postRequestData,
 }

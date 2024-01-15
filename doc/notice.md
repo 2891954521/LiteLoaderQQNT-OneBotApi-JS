@@ -11,9 +11,9 @@
 ### 收到好友请求
 ```json lines
 {
-    request_type: 'friend',
-    user_id: '123456',   // 好友QQ号
-    comment: '我是xxx',  // 加好友的验证消息
-    flag: 'xxxx'         // 处理好友请求的flag
+    "request_type": "friend",
+    "user_id": "123456",   // 好友QQ号
+    "comment": "我是xxx",  // 加好友的验证消息
+    "flag": "xxxx"         // 处理好友请求的flag
 }
 ```

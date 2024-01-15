@@ -25,5 +25,5 @@
 
 ### 支持的消息
 
-详见 [Message](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/message.md)
-和 [Notice](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/notice.md)
+详见 [Message](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/blob/main/doc/message.md)
+和 [Notice](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/blob/main/doc/notice.md)

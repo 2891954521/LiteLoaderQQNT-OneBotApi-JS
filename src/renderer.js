@@ -1,19 +1,13 @@
 const ipcRenderer = window.OneBotApi.ipcRenderer_OneBot;
 const ipcRendererOn = window.OneBotApi.ipcRenderer_ON_OneBot;
-const ipcRendererOnce = window.OneBotApi.ipcRenderer_ONCE_OneBot;
 
 const pluginPath = LiteLoader.plugins['OneBotApi-JS'].path.plugin;
 
-
-/**
- * 是否处于调试模式
- */
-let isDebug = false;
-
 function loadMain(){
-	if(isDebug) log('loadMain');
-
+	const isDebug = window.OneBotApi.isDebug;
 	const IPCAction = window.OneBotApi.IPCAction;
+
+	if(isDebug) log('loadMain');
 
 	// 更新好友列表
 	ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]);
@@ -37,7 +31,6 @@ function loadMain(){
 function onLoad(){
 	const url = location.href;
 	if(url.includes("/index.html") && url.includes("#/main/message")){
-		if(isDebug) log('call loadMain');
 		ipcRenderer.send('one_bot_api_load_main_page');
 		loadMain();
 	}else{
@@ -46,7 +39,6 @@ function onLoad(){
 			// 检测是否为主界面
 			if(url.includes("/index.html") && url.includes("#/main/message")){
 				navigation.removeEventListener("navigatesuccess", func);
-				if(isDebug) log('call loadMain navigation');
 				ipcRenderer.send('one_bot_api_load_main_page')
 				loadMain();
 			}
@@ -127,7 +119,6 @@ function ntCall(eventName, cmdName, args, uuid = null){
 
 
 function log(...args){
-	console.log("\x1b[32m[OneBotAPI-renderer]\x1b[0m", ...args);
 	ipcRenderer.send("one_bot_api_log", args);
 }
 

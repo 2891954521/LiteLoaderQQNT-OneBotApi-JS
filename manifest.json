@@ -4,7 +4,7 @@
     "name": "OneBotApi-JS",
     "slug": "OneBotApi-JS",
     "description": "在LiteLoaderQQNT上添加OneBot协议支持",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "thumbnail": "./icon.png",
     "author": {
         "name": "GreenDog",

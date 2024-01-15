@@ -87,7 +87,8 @@ class Setting{
         "port": 5000,
         "hosts": [
             "http://127.0.0.1:8080/"
-        ]
+        ],
+        "autoAcceptFriendRequest": false
     }
 }
 

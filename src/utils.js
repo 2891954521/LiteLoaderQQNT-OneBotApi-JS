@@ -1,7 +1,39 @@
 const fs = require("fs");
 const path = require('path');
+const crypto = require("crypto");
 
 let settingsPath = './';
+
+
+/**
+ * 下载文件
+ * @param {string} uri
+ * @param {string} savePath - 保存的路径
+ */
+async function downloadFile(uri, savePath){
+    let url = new URL(uri);
+    if(url.protocol === "base64:"){
+        fs.writeFileSync(savePath, Buffer.from(uri.split("base64://")[1], 'base64'));
+    }else if(url.protocol === "http:" || url.protocol === "https:"){
+        let res = await fetch(url)
+        let blob = await res.blob();
+        let buffer = await blob.arrayBuffer();
+        fs.writeFileSync(savePath, Buffer.from(buffer));
+    }
+}
+
+
+/**
+ * 计算文件 md5
+ * @param {string} filePath
+ * @return {string}
+ */
+function md5(filePath){
+    const hash = crypto.createHash('md5');
+    hash.update(fs.readFileSync(filePath));
+    return hash.digest('hex');
+}
+
 
 function loadSetting(plugin){
     let configData = {
@@ -56,8 +88,12 @@ function checkAndCompleteKeys(json1, json2){
 
 
 module.exports = {
-    logToFile: logToFile,
-    checkAndCompleteKeys: checkAndCompleteKeys,
-    loadSetting: loadSetting,
-    saveSetting: saveSetting,
+    md5,
+    downloadFile,
+
+    logToFile,
+    checkAndCompleteKeys,
+
+    loadSetting,
+    saveSetting,
 }

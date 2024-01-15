@@ -5,16 +5,18 @@ const { Data, Setting, RuntimeData } = require('./core');
 
 const utils = require('../utils');
 const httpServer = require('../model/httpServer');
-const messageModel = require('../model/messageModel');
+const ActionHandle = require('../model/actionHandle');
 
 
 function onLoad(plugin, liteloader) {
     
     Setting.setting = utils.loadSetting(plugin);
-    
-    // 获取IPC Action
-    ipcMain.on('one_bot_api_get_actions', (event) => {
-        event.returnValue = IPCAction;
+
+    ipcMain.on('one_bot_api_get_runtime_data', (event) => {
+        event.returnValue = {
+            'IPCAction': IPCAction,
+            'isDebug': RuntimeData.isDebugMode
+        };
     });
 
     // 获取设置
@@ -40,6 +42,7 @@ function onLoad(plugin, liteloader) {
             if(webContents.getURL().includes('#/main/message')){
                 RuntimeData.mainPage = webContents;
                 httpServer.startHttpServer(Setting.setting.port);
+                RuntimeData.ntCall("ns-BusinessApi", "fetchAuthData", []).then(info => Data.selfInfo = info);
                 return true;
             }else{
                 return false;
@@ -51,9 +54,6 @@ function onLoad(plugin, liteloader) {
         Setting.setting = setting;
         utils.saveSetting(setting);
     });
-
-    ipcMain.on(IPCAction.ACTION_UPDATE_SELF_INFO, (event, selfInfo) => Data.selfInfo = selfInfo);
-    ipcMain.on(IPCAction.ACTION_UPDATE_GROUPS, (event, groups) => Data.groups = groups);
 
     ipcMain.on('one_bot_api_restart_http_server', (event, port) => httpServer.startHttpServer(port, true));
 }
@@ -101,7 +101,7 @@ function patchedIPC(_, status, name, ...args) {
 }
 
 /**
- * 监听向渲染进程发送的消息
+ * 解析向渲染进程发送的消息
  */
 function patchedSend(channel, ...args){
 
@@ -111,107 +111,9 @@ function patchedSend(channel, ...args){
         }
     }
 
-    const cmdName = args?.[1]?.[0]?.cmdName;
-    if(cmdName){
-        switch(cmdName){
-
-            // 监听新消息
-            case "nodeIKernelMsgListener/onRecvMsg":
-
-                const messages = args[1][0].payload?.msgList;
-                if(messages) messageModel.handleNewMessage(messages);
-                break;
-
-            // 更新好友信息
-            case "nodeIKernelBuddyListener/onBuddyListChange":
-                const data = args[1][0]?.payload?.data;
-                if(!data) break;
-
-                const friends = {};
-                const userMap = {};
-
-                data.forEach((category) => {
-                    const buddyList = category?.buddyList;
-                    if(buddyList) buddyList.forEach((friend) => {
-                        friends[friend.uin] = friend;
-                        userMap[friend.uid] = friend.uin;
-                    })
-                });
-
-                const friendsCount = Object.keys(friends).length;
-                if(friendsCount === 0) break;
-                
-                Data.friends = friends;
-                Data.userMap = userMap;
-
-                log(`load ${friendsCount} friends`);
-
-                break;
-
-            // 更新群信息
-            case "nodeIKernelGroupListener/onGroupListUpdate":
-                const groupList = args[1][0]?.payload?.groupList;
-                if(!groupList) break;
-                
-                const groups = {};
-
-                groupList.forEach((group) => groups[group.groupCode] = group);
-
-                const groupsCount = Object.keys(groups).length;
-                if(groupsCount === 0) break;
-
-                Data.groups = groups;
-
-                log(`load ${groupsCount} groups`);
-
-                break;
-
-            // 更新好友请求列表
-            case "nodeIKernelBuddyListener/onBuddyReqChange":
-                args[1][0]?.payload?.data?.buddyReqs
-                    ?.filter(user => user.isUnread && !user.isDecide)
-                    .forEach(user => {
-                        RuntimeData.getUserInfoByUid(user.friendUid).then(info => {
-                            messageModel.postRequestData({
-                                request_type: 'friend',
-                                user_id: info.uin,
-                                comment: user.extWords,
-                                flag: user.friendUid
-                            })
-                        })
-                    });
-                return;
-
-            // 媒体文件下载完成
-            case "nodeIKernelMsgListener/onRichMediaDownloadComplete":
-                messageModel.postNoticeData({
-                    notice_type: "download_finish",
-                    file: {
-                        msgId: args[1][0].payload.notifyInfo.msgId,
-                        filePath: args[1][0].payload.notifyInfo.filePath,
-                        totalSize: args[1][0].payload.notifyInfo.totalSize,
-                    }
-                })
-                break;
-
-            // 获取用户信息完成
-            case "nodeIKernelProfileListener/onProfileDetailInfoChanged":
-                const uid = args[1][0].payload?.info?.uid;
-                if(uid && uid in RuntimeData.getUserInfoCallback){
-                    RuntimeData.getUserInfoCallback[uid](args[1][0].payload.info);
-                    delete RuntimeData.getUserInfoCallback[uid];
-                }
-                return;
-
-            // 禁用更新
-            case "nodeIKernelUnitedConfigListener/onUnitedConfigUpdate":
-                args[1][0].payload.configData.content = "";
-                args[1][0].payload.configData.isSwitchOn = false;
-                break;
-
-            default:
-                break;
-        }
+    const cmdObject = args?.[1]?.[0];
+    if(cmdObject?.cmdName){
+        ActionHandle.onMessageHandle(cmdObject);
     }
 
     if(args[0]?.callbackId){

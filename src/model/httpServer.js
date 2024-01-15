@@ -64,9 +64,11 @@ const handleURL = {
      *   ]
      * }
      */
-    '/send_msg': (url, postData) => {
-        MessageModel.sendMessage(postData);
-        return { code: 200, msg: "OK" };
+    '/send_msg': async (url, postData) => {
+        return {
+            code: 200,
+            msg: await MessageModel.sendMessage(postData)
+        };
     },
 
     /**
@@ -86,9 +88,11 @@ const handleURL = {
      *   ]
      * }
      */ 
-    '/send_private_msg': (url, postData) => {
-        MessageModel.sendMessage(postData);
-        return { code: 200, msg: "OK" };
+    '/send_private_msg': async (url, postData) => {
+        return {
+            code: 200,
+            msg: await MessageModel.sendMessage(postData)
+        };
     },
 
     /**
@@ -108,9 +112,11 @@ const handleURL = {
      *   ]
      * }
      */
-    '/send_group_msg': (url, postData) => {
-        MessageModel.sendMessage(postData);
-        return { code: 200, msg: "OK" };
+    '/send_group_msg': async (url, postData) => {
+        return {
+            code: 200,
+            msg: await MessageModel.sendMessage(postData)
+        };
     },
 
     /**
@@ -303,9 +309,6 @@ function startHttpServer(port, restart = false){
                     res.end('{ "code": 400, "msg": "Wrong content type" }');
                     return;
                 }
-
-                log(`url: ${req.url}`);
-
                 const handler = handleURL[req.url];
                 if(handler){
                     res.end(JSON.stringify(await handler(req.url, form)));

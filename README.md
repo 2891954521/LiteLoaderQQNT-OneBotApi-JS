@@ -20,20 +20,10 @@
 
 ### 支持的API
 
-- [X] send_msg
-- [X] send_group_msg
-- [X] send_private_msg
+详见 [HTTP API](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/http.md)
 
-- [ ] get_login_info
-- [X] get_friend_list
-- [X] set_friend_add_request
 
-### 支持上报的消息
+### 支持的消息
 
-- [X] 文字
-- [X] at
-- [X] 好友请求
-
-### 支持发送的消息格式
-
-* [X] 文字
+详见 [Message](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/message.md)
+和 [Notice](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/notice.md)

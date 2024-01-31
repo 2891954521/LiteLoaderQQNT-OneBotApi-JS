@@ -34,32 +34,25 @@ function md5(filePath){
     return hash.digest('hex');
 }
 
-
+/**
+ * 从本地文件加载设置信息
+ * @param plugin
+ */
 function loadSetting(plugin){
-    let configData = {
-        "port": 5000,
-        "hosts": [
-            "http://127.0.0.1:8080/"
-        ]
-    };
-
     const pluginDataPath = plugin.path.data;
 
     settingsPath = path.join(pluginDataPath, "settings.json");
 
-    // 设置文件判断
+    // 设置文件是否存在判断
     if(!fs.existsSync(pluginDataPath)){
         fs.mkdirSync(pluginDataPath, { recursive: true });
     }
 
     if(!fs.existsSync(settingsPath)){
-        fs.writeFileSync(settingsPath, JSON.stringify(configData, null, 4));
+        return null;
     }else{
-        const data = fs.readFileSync(settingsPath, "utf-8");
-        configData = checkAndCompleteKeys(JSON.parse(data), configData);
+        return JSON.parse(fs.readFileSync(settingsPath, "utf-8"))
     }
-
-    return configData;
 }
 
 function saveSetting(content){

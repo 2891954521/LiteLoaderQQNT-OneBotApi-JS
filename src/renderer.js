@@ -7,7 +7,7 @@ function loadMain(){
 	const isDebug = window.OneBotApi.isDebug;
 	const IPCAction = window.OneBotApi.IPCAction;
 
-	if(isDebug) log('loadMain');
+	if(isDebug) print('loadMain');
 
 	// 更新好友列表
 	ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]);
@@ -16,7 +16,9 @@ function loadMain(){
 	ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]);
 
 	// 获取自身信息
-	// ntCall("ns-BusinessApi", "fetchAuthData", []).then((selfInfo) => {
+	// ntCall("ns-BusinessApi", "fetchAuthData", [])
+	// 	.then((selfInfo) => {
+	// 	print(selfInfo);
 	// 	if(!selfInfo) return;
 	// 	ipcRenderer.send(IPCAction.ACTION_UPDATE_SELF_INFO, selfInfo);
 	// });
@@ -25,82 +27,84 @@ function loadMain(){
 		ntCall(data['eventName'], data['cmdName'], data['args'], 'uuid' in data ? data['uuid'] : null)
 	});
 
-	if(isDebug) log('loadMain done');
-}
-
-function onLoad(){
-	const url = location.href;
-	if(url.includes("/index.html") && url.includes("#/main/message")){
-		ipcRenderer.send('one_bot_api_load_main_page');
-		loadMain();
-	}else{
-		navigation.addEventListener("navigatesuccess", function func(event){
-			const url = event.target.currentEntry.url;
-			// 检测是否为主界面
-			if(url.includes("/index.html") && url.includes("#/main/message")){
-				navigation.removeEventListener("navigatesuccess", func);
-				ipcRenderer.send('one_bot_api_load_main_page')
-				loadMain();
-			}
-		});
-	}
+	if(isDebug) print('loadMain done');
 }
 
 async function onConfigView(view){
+
+}
+
+async function onSettingWindowCreated(view){
 
 	const IPCAction = window.OneBotApi.IPCAction;
 
 	const configData = await ipcRenderer.invoke(IPCAction.ACTION_GET_CONFIG);
 
-	const link = document.createElement("link");
-	link.rel = "stylesheet";
-	link.href = `llqqnt://local-file/${pluginPath}/src/common/setting.css`;
+	view.innerHTML = await (await fetch(`local:///${pluginPath}/src/common/setting.html`)).text();
 
-	document.head.appendChild(link);
 
-	const htmlText = await (await fetch(`llqqnt://local-file/${pluginPath}/src/common/setting.html`)).text();
+	const httpStatus = view.querySelector('.http #httpServerStatus');
 
-    new DOMParser()
-		.parseFromString(htmlText, "text/html")
-		.querySelectorAll("section")
-		.forEach((node) => view.appendChild(node));
-
-	const httpStatus = view.querySelector('.http .http-server-status');
-
-    const httpPort = view.querySelector(".http .http-port-input");
-    const httpReport = view.querySelector(".http .http-report-input");
-
-	const restartServer = view.querySelector('.http .start-http-server');
-    const applyHttpPort = view.querySelector(".http .apply-http-port");
-    const applyHttpReport = view.querySelector(".http .apply-http-report");
-
-    httpPort.value = configData.port;
-	httpReport.value = configData.hosts[0];
-
-	ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(httpServer => {
-		httpStatus.innerHTML = httpServer ? '<font color="green">运行中</font>' : '<font color="red">未运行</font>';
+	ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(errorMessage => {
+		httpStatus.innerHTML = errorMessage == null ? '<font color="green">运行中</font>' : `<font color="red">${errorMessage}</font>`;
 	});
 
-	restartServer.addEventListener('click', () => {
+	// 重启HTTP服务端按钮
+	view.querySelector('.http #restartHTTPServer').addEventListener('click', () => {
 		ipcRenderer.send('one_bot_api_restart_http_server', configData.port);
-		ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(httpServer => {
-			httpStatus.innerHTML = httpServer ? '<font color="green">运行中</font>' : '<font color="red">未运行</font>';
-		});
-		alert("HTTP服务正在重启");
+		httpStatus.innerHTML = "正在重启";
+		setTimeout( () => ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(errorMessage => {
+			httpStatus.innerHTML = errorMessage == null ? '<font color="green">运行中</font>' : `<font color="red">${errorMessage}</font>`;
+		}), 1000);
 	});
 
-    applyHttpPort.addEventListener("click", () => {
-		configData.port = parseInt(httpPort.value);
+    const httpPort = view.querySelector(".http .HTTPPort");
+	const httpReport = view.querySelector(".http .HTTPReport");
+
+	httpPort.value = configData.http.port;
+	httpReport.value = configData.http.host;
+
+	// 应用HTTP端口设置
+	view.querySelector(".http #updateHTTPPort").addEventListener("click", () => {
+		configData.http.port = parseInt(httpPort.value);
 		ipcRenderer.send('one_bot_api_set_config', configData);
 		ipcRenderer.send('one_bot_api_restart_http_server', configData.port);
 		alert("设置成功");
-    });
+	});
 
-    applyHttpReport.addEventListener("click", () => {
-		configData.hosts[0] = httpReport.value;
+	bingToggle(view, ".http #enableHTTPReport", configData.http.enable, (enable) => {
+		configData.http.enable = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
+	// 应用HTTP上报URL设置
+    view.querySelector(".http #updateHTTPReport").addEventListener("click", () => {
+		configData.http.host = httpReport.value;
 		ipcRenderer.send('one_bot_api_set_config', configData);
 		alert("设置成功");
     });
+
+	// 自动接受好友请求
+	const autoAcceptFriendRequest = view.querySelector(".setting #autoAcceptFriendRequest");
+	autoAcceptFriendRequest.toggleAttribute("is-active", configData.setting.autoAcceptFriendRequest);
+	autoAcceptFriendRequest.addEventListener("click", () => {
+		configData.setting.autoAcceptFriendRequest = autoAcceptFriendRequest.toggleAttribute("is-active");
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
+	const debugMode = view.querySelector(".debug #debugMode");
+	debugMode.toggleAttribute("is-active", configData.debug.debug);
+	debugMode.addEventListener("click", () => {
+		configData.debug.debug = debugMode.toggleAttribute("is-active");
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
+	const debugIPC = view.querySelector(".debug #debugIPC");
+	debugIPC.toggleAttribute("is-active", configData.debug.ipc);
+	debugIPC.addEventListener("click", () => {
+		configData.debug.ipc = debugIPC.toggleAttribute("is-active");
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
 }
 
 
@@ -117,13 +121,36 @@ function ntCall(eventName, cmdName, args, uuid = null){
 	);
 }
 
+function bingToggle(view, selector, value, callback){
+	const toggle = view.querySelector(selector);
+	toggle.toggleAttribute("is-active", value);
+	toggle.addEventListener("click", () => {
+		callback(toggle.toggleAttribute("is-active"));
+	});
+}
 
-function log(...args){
+function print(...args){
 	ipcRenderer.send("one_bot_api_log", args);
 }
 
 
+const url = location.href;
+if(url.includes("/index.html") && url.includes("#/main/message")){
+	ipcRenderer.send('one_bot_api_load_main_page');
+	loadMain();
+}else{
+	navigation.addEventListener("navigatesuccess", function func(event){
+		const url = event.target.currentEntry.url;
+		// 检测是否为主界面
+		if(url.includes("/index.html") && url.includes("#/main/message")){
+			navigation.removeEventListener("navigatesuccess", func);
+			ipcRenderer.send('one_bot_api_load_main_page')
+			loadMain();
+		}
+	});
+}
+
 export {
-	onLoad,
-	onConfigView
+	onConfigView,
+	onSettingWindowCreated
 }

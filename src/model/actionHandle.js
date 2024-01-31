@@ -2,61 +2,84 @@
  * 客户端内部消息处理模块
  */
 
+const { Log } = require("../logger");
 const { Data, RuntimeData } = require('../main/core');
 const MessageModel = require('../model/messageModel');
 
 
+/**
+ * 接收新消息
+ */
+function onRecvMsg(arg){
+	const messages = arg?.payload?.msgList;
+	if(messages){
+		MessageModel.handleNewMessage(messages)
+			.then(() => { }, (err) => {
+				Log.e("解析消息失败: " + err.stack + '\n消息内容: ' + JSON.stringify(messages));
+		})
+	}
+}
+
+
+/**
+ * 更新好友信息
+ */
+function onBuddyListChange(arg){
+	const data = arg?.payload?.data;
+	if(!data) return;
+
+	const friends = {};
+	const userMap = {};
+
+	data.forEach((category) => {
+		const buddyList = category?.buddyList;
+		if(buddyList) buddyList.forEach((friend) => {
+			friends[friend.uin] = friend;
+			userMap[friend.uid] = friend.uin;
+		})
+	});
+
+	const friendsCount = Object.keys(friends).length;
+	if(friendsCount === 0) return;
+
+	Log.d(`load ${friendsCount} friends.`);
+
+	Data.friends = friends;
+	Data.userMap = userMap;
+}
+
+
+
+/**
+ * 更新群信息
+ */
+function onGroupListUpdate(arg){
+	const groupList = arg?.payload?.groupList;
+	if(!groupList) return;
+
+	const groups = {};
+
+	groupList.forEach((group) => groups[group.groupCode] = group);
+
+	const groupsCount = Object.keys(groups).length;
+	if(groupsCount === 0) return;
+
+	Log.d(`load ${groupsCount} groups.`);
+
+	Data.groups = groups;
+}
+
+
 const handleCmd = {
 
-	/**
-	 * 接收新消息
-	 */
-	"nodeIKernelMsgListener/onRecvMsg": (arg) => {
-		const messages = arg?.payload?.msgList;
-		if(messages) MessageModel.handleNewMessage(messages).then(r => { });
-	},
+	"onRecvMsg": onRecvMsg,
+	"nodeIKernelMsgListener/onRecvMsg": onRecvMsg,
 
-	/**
-	 * 更新好友信息
-	 */
-	"nodeIKernelBuddyListener/onBuddyListChange": (arg) => {
-		const data = arg?.payload?.data;
-		if(!data) return;
+	"onBuddyListChange": onBuddyListChange,
+	"nodeIKernelBuddyListener/onBuddyListChange": onBuddyListChange,
 
-		const friends = {};
-		const userMap = {};
-
-		data.forEach((category) => {
-			const buddyList = category?.buddyList;
-			if(buddyList) buddyList.forEach((friend) => {
-				friends[friend.uin] = friend;
-				userMap[friend.uid] = friend.uin;
-			})
-		});
-
-		const friendsCount = Object.keys(friends).length;
-		if(friendsCount === 0) return;
-
-		Data.friends = friends;
-		Data.userMap = userMap;
-	},
-
-	/**
-	 * 更新群信息
-	 */
-	"nodeIKernelGroupListener/onGroupListUpdate": (arg) => {
-		const groupList = arg?.payload?.groupList;
-		if(!groupList) return;
-
-		const groups = {};
-
-		groupList.forEach((group) => groups[group.groupCode] = group);
-
-		const groupsCount = Object.keys(groups).length;
-		if(groupsCount === 0) return;
-
-		Data.groups = groups;
-	},
+	"onGroupListUpdate": onGroupListUpdate,
+	"nodeIKernelGroupListener/onGroupListUpdate": onGroupListUpdate,
 
 	/**
 	 * 更新好友请求列表

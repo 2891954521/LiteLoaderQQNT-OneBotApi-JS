@@ -1,9 +1,12 @@
 module.exports = {
     IPCAction: {
         /**
-         * 读取和写入配置文件
+         * 获取配置信息
          */
         ACTION_GET_CONFIG: "one_bot_api_get_config",
+        /**
+         * 保存配置信息
+         */
         ACTION_SET_CONFIG: "one_bot_api_set_config",
             
         ACTION_LOG: "one_bot_api_log",
@@ -37,5 +40,24 @@ module.exports = {
          * 获取HTTP服务器运行状态
          */
         ACTION_HTTP_SERVER_STATUS: 'one_bot_api_http_server_status',
+    },
+
+    // 默认设置文件
+    defaultSetting: {
+        "http": {
+            "port": 5000,
+
+            'enable': true,
+            "host": "http://127.0.0.1:8080/"
+        },
+
+        "setting": {
+            "autoAcceptFriendRequest": false
+        },
+
+        "debug": {
+            "debug": false,
+            "ipc": false,
+        }
     }
 }

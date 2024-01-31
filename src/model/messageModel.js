@@ -7,6 +7,7 @@ const fs = require("fs");
 const { Data, RuntimeData, Setting } = require('../main/core');
 const { IPCAction } = require("../common/const");
 
+const { Log } = require('../logger');
 const utils = require("../utils");
 
 
@@ -24,7 +25,7 @@ function createPeer(postData){
 		let group = Data.getGroupByUid(postData['group_id']);
 
 		if(group === null){
-			log(`Unable to find group with ${postData['group_id']}`);
+			Log.e(`Unable to find group with ${postData['group_id']}`);
 			return null;
 
 		}else{
@@ -38,7 +39,7 @@ function createPeer(postData){
 		let friend = Data.getUserByQQ(postData['user_id']);
 
 		if(friend === null){
-			log(`Unable to find friend with QQ ${postData['user_id']}`);
+			Log.e(`Unable to find friend with QQ ${postData['user_id']}`);
 			return null;
 
 		}else{
@@ -123,7 +124,7 @@ async function createImage(url) {
 	}
 
 	if(!fs.existsSync(file)){
-		log('发送图片失败，图片文件不存在');
+		Log.e('发送图片失败，图片文件不存在');
 		return createText("[图片]");
 	}
 
@@ -146,7 +147,7 @@ async function createImage(url) {
 	);
 
 	if(typeof filePath !== 'string' || filePath.trim() === ''){
-		log('发送图片失败，无法创建图片文件');
+		Log.e('发送图片失败，无法创建图片文件');
 		return createText("[图片]");
 	}
 
@@ -209,6 +210,13 @@ async function sendMessage(postData){
     if(postData.message.constructor === String){
         messages.push(createText(postData.message));
 
+		if(Setting.setting.debug.debug){
+			if(postData.group_id){
+				Log.i(`发送群 (${postData.group_id}) 消息：${postData.message}`);
+			}else{
+				Log.i(`发送好友 (${postData.user_id}) 消息：${postData.message}`);
+			}
+		}
     }else{
         for(let message of postData.message){
             if(message.type === "text"){
@@ -221,15 +229,25 @@ async function sendMessage(postData){
 				// return messages.push(messages.data)
 			}
         }
+
+		if(Setting.setting.debug.debug){
+			let content = postData.message.map(item => item.type === "text" ? item.data.text : `[${item.type}]`).join('');
+			if(postData.group_id){
+				Log.i(`发送群 (${postData.group_id}) 消息：${content}`);
+			}else{
+				Log.i(`发送好友 (${postData.user_id}) 消息：${content}`);
+			}
+		}
     }
 
-    RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, {
+	RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, {
         'eventName': "ns-ntApi",
         'cmdName': "nodeIKernelMsgService/sendMsg",
         'args': [{
             msgId: "0",
             peer: peer,
             msgElements: messages,
+			msgAttributeInfos: new Map()
         }, null]
     });
 
@@ -254,14 +272,32 @@ async function handleNewMessage(messages){
 			msgData["message_type"] = "private";
 			msgData["sub_type"] = "friend";
 
-			msgData["user_id"] = Data.getUserByUid(message.senderUid).uin;
+			msgData["user_id"] = Data.getUserByUid(message.senderUid)?.uin;
 
 		}else if(message.chatType === 2){
 			msgData["message_type"] = "group";
 			msgData["sub_type"] = "normal";
 
 			msgData["group_id"] = message.peerUid;
-			msgData["user_id"] = Data.getUserByUid(message.senderUid).uin;
+
+			msgData.user_id = Data.userMap[message.senderUid];
+
+			if(!msgData.user_id){
+				if(Data.groupMember.hasOwnProperty(message.senderUid)){
+					msgData.user_id = Data.groupMember[message.senderUid].uin;
+				}else{
+					Log.d(`联网查找用户信息: uid(${message.senderUid})`);
+					let user = await RuntimeData.getUserInfoByUid(message.senderUid);
+					Log.d(`找到用户: ${user.nick}(${user.uin})`);
+					Data.groupMember[message.senderUid] = user;
+					msgData.user_id = user.uin;
+				}
+			}
+		}
+
+		if(!msgData.user_id){
+			Log.w(`无法获取发送者QQ号: uid: ${message.senderUid}`);
+			continue;
 		}
 
 		for(let element of message.elements){
@@ -345,6 +381,15 @@ async function handleNewMessage(messages){
 			msgData["message"].push(msgChain)
 		}
 
+		if(Log.isDebug){
+			let content = msgData.message.map(item => item.type === "text" ? item.data.text : `[${item.type}]`).join('');
+			if(msgData.group_id){
+				Log.i(`收到群 (${msgData.group_id}) 内 (${msgData.user_id}) 的消息：${content}`);
+			}else{
+				Log.i(`收到好友 (${msgData.user_id}) 的消息：${content}`);
+			}
+		}
+
 		postHttpData(msgData);
 	}
 }
@@ -358,8 +403,10 @@ async function handleNewMessage(messages){
  * @param {*} postData
  */
 function postHttpData(postData){
+	if(!Setting.setting.http.enable) return;
+
 	try{
-		fetch(Setting.setting.hosts[0], {
+		fetch(Setting.setting.http.host, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -368,10 +415,10 @@ function postHttpData(postData){
 		}).then((res) => {
 
 		}, (err) => {
-			log(`http report fail: ${err}\n${JSON.stringify(postData, null, 2)}`);
+			Log.w(`http report fail: ${err}\n${JSON.stringify(postData)}`);
 		});
 	}catch(e){
-		log(e.toString())
+		Log.e(e.toString());
 	}
 }
 
@@ -397,10 +444,6 @@ function postRequestData(postData){
 	postHttpData(postData);
 }
 
-
-function log(...args){
-    console.log("\x1b[32m[OneBotAPI-MessageModel]\x1b[0m", ...args);
-}
 
 module.exports = {
     sendMessage,

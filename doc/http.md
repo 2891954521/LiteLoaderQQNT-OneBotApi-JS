@@ -7,8 +7,10 @@
 | `/send_msg`               |  ✓   | 发送消息    |
 | `/send_private_msg`       |  ✓   | 发送私聊消息  |
 | `/send_group_msg`         |  ✓   | 发送群消息   |
-| `/get_login_info`         | 在做了  | 获取账号信息  |
+| `/get_login_info`         |  ✓   | 获取账号信息  |
 | `/get_friend_list`        |  ✓   | 获取好友列表  |
+| `/get_group_list`         |  ✓   | 获取群列表   |
+| `/get_group_info`         |  ✓   | 获取群信息   |
 | `/set_friend_add_request` |  ✓   | 处理加好友请求 |
 
 
@@ -23,6 +25,23 @@
     "message": "Hello World" // 发送的消息，可以为字符串，也可以为消息数组
 }
 ```
+
+
+### `POST` `/get_login_info` 获取账号信息
+
+**响应体**
+```json lines
+{
+    "code": 200,
+    "msg": "OK",
+    "data": [
+        {
+            "account": "123456", // QQ号
+        }
+    ]
+}
+```
+
 
 ### `POST` `/get_friend_list` 获取好友列表
 
@@ -40,6 +59,50 @@
     ]
 }
 ```
+
+
+### `POST` `/get_group_list` 获取群列表
+
+**响应体**
+```json lines
+{
+    "code": 200,
+    "msg": "OK",
+    "data": [
+        {
+            "group_id": "123456",  // 群号
+            "group_name": "",      // 群名称
+            "member_count": "",    // 成员数
+            "max_member_count": "" // 最大成员数（群容量）
+        }
+    ]
+}
+```
+
+
+### `POST` `/get_group_info` 获取群信息
+
+**请求体**
+```json lines
+{
+    "group_id": 123456, // 群号
+}
+```
+
+**响应体**
+```json lines
+{
+    "code": 200,
+    "msg": "OK",
+    "data": {
+        "group_id": "123456",  // 群号
+        "group_name": "",      // 群名称
+        "member_count": "",    // 成员数
+        "max_member_count": "" // 最大成员数（群容量）
+    }
+}
+```
+
 
 ### `POST` `/set_friend_add_request` 接受好友请求
 

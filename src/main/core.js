@@ -4,7 +4,7 @@
 
 const crypto = require('crypto');
 
-const {IPCAction} = require("../common/const");
+const {IPCAction, defaultSetting} = require("../common/const");
 
 /**
  * 数据
@@ -29,6 +29,12 @@ class Data{
     static friends = {};
 
     /**
+     * 群成员的信息
+     * uid -> 用户
+     */
+    static groupMember = {};
+
+    /**
      * 群号 -> 群信息
      */
     static groups = {};
@@ -39,7 +45,7 @@ class Data{
      * @returns {object | null}
      */
     static getUserByQQ(qq){
-        let user = this.friends.hasOwnProperty(qq.toString()) ? this.friends[qq] : null;
+        let user = this.friends.hasOwnProperty(qq?.toString()) ? this.friends[qq.toString()] : null;
         if(user !== undefined){
             return user;
         }else{
@@ -54,8 +60,8 @@ class Data{
      * @returns {object | null}
      */
     static getUserByUid(uid){
-        let qq = this.userMap.hasOwnProperty(uid.toString()) ? this.userMap[uid] : null;
-        if(qq !== undefined){
+        let qq = this.userMap.hasOwnProperty(uid.toString()) ? this.userMap[uid.toString()] : null;
+        if(qq){
             return this.getUserByQQ(qq);
         }else{
             log(`User with uid ${uid} not found.`);
@@ -69,8 +75,8 @@ class Data{
      * @return {Object | null}
      */
     static getGroupByUid(uid){
-        let group = this.groups.hasOwnProperty(uid.toString()) ? this.groups[uid] : null;
-        if(group !== undefined){
+        let group = this.groups.hasOwnProperty(uid.toString()) ? this.groups[uid.toString()] : null;
+        if(group){
             return group;
         }else{
             log(`Group with uid ${uid} not found.`);
@@ -83,13 +89,7 @@ class Data{
  * 系统设置
  */
 class Setting{
-    static setting = {
-        "port": 5000,
-        "hosts": [
-            "http://127.0.0.1:8080/"
-        ],
-        "autoAcceptFriendRequest": false
-    }
+    static setting = defaultSetting;
 }
 
 /**
@@ -105,6 +105,8 @@ class RuntimeData{
      * 是否为调试模式
      */
     static isDebugMode = false;
+
+    static isDebugIPC = false;
 
     static ntCallCallback = { };
 

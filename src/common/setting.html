@@ -1,143 +1,119 @@
-<body>
+<setting-section data-title="HTTP设置" class="http">
+    <setting-panel>
+        <setting-list data-direction="column">
+            <setting-item>
+                <setting-text>HTTP服务器状态</setting-text>
+                <setting-text data-type="secondary" id="httpServerStatus">正在获取</setting-text>
+                <setting-button data-type="secondary" id="restartHTTPServer"> 重新启动 </setting-button>
+            </setting-item>
 
-    <section class="http">
+            <setting-item>
+                <setting-text>HTTP服务端端口</setting-text>
+                <input class="HTTPPort input_box text_color" type="number" spellcheck="false"/>
+                <setting-button data-type="secondary" id="updateHTTPPort"> 应用 </setting-button>
+            </setting-item>
 
-        <h1>HTTP设置</h1>
-
-        <div class="wrap">
-
-            <div class="vertical-list-item">
-                <h2>HTTP服务器状态</h2>
-
+            <setting-item>
                 <div>
-                    <span class="secondary-text http-server-status">正在获取</span>
+                    <setting-text>HTTP上报</setting-text>
+                    <setting-text data-type="secondary">是否开启HTTP上报服务</setting-text>
                 </div>
+                <setting-switch id="enableHTTPReport"></setting-switch>
+            </setting-item>
+            <setting-item>
+                <setting-text>HTTP上报URL</setting-text>
+                <input class="HTTPReport input_box text_color" type="text" spellcheck="false"/>
+                <setting-button data-type="secondary" id="updateHTTPReport"> 应用 </setting-button>
+            </setting-item>
+        </setting-list>
 
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary start-http-server"> 重新启动 </button>
-                </div>
-            </div>
+    </setting-panel>
+</setting-section>
 
-            <hr class="horizontal-dividing-line" />
+<!--<setting-section data-title="运行信息" class="data">-->
+<!--    <setting-panel>-->
+<!--        <setting-list data-direction="column">-->
 
-            <div class="vertical-list-item">
-                <h2>HTTP服务端端口</h2>
+<!--            <setting-item>-->
+<!--                <setting-text>Bot框架</setting-text>-->
+<!--                <setting-text data-type="secondary" class="coreStatus">正在获取</setting-text>-->
+<!--                <setting-button data-type="secondary" class="updateCore"> 重新加载 </setting-button>-->
+<!--            </setting-item>-->
 
-                <input class="http-port-input input_box text_color" type="text" spellcheck="false"/>
+<!--            <setting-item>-->
+<!--                <setting-text>好友列表</setting-text>-->
+<!--                <setting-text data-type="secondary" class="friendList">正在获取</setting-text>-->
+<!--                <setting-button data-type="secondary" class="updateFriendList"> 重新加载 </setting-button>-->
+<!--            </setting-item>-->
 
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary apply-http-port"> 应用 </button>
-                </div>
-            </div>
+<!--            <setting-item>-->
+<!--                <setting-text>群列表</setting-text>-->
+<!--                <setting-text data-type="secondary" class="groupList">正在获取</setting-text>-->
+<!--                <setting-button data-type="secondary" class="updateFriendList"> 重新加载 </setting-button>-->
+<!--            </setting-item>-->
 
-            <hr class="horizontal-dividing-line" />
+<!--        </setting-list>-->
+<!--    </setting-panel>-->
+<!--</setting-section>-->
 
-            <div class="vertical-list-item">
-                <h2>HTTP上报URL</h2>
+<setting-section data-title="Bot设置" class="setting">
+    <setting-panel>
+        <setting-list data-direction="column">
 
-                <input class="http-report-input input_box text_color" type="text" spellcheck="false"/>
-
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary apply-http-report"> 应用 </button>
-                </div>
-            </div>
-
-        </div>
-
-    </section>
-
-    <section class="data">
-
-        <h1>运行信息</h1>
-
-        <div class="wrap">
-
-            <div class="vertical-list-item">
-                <h2>Bot框架</h2>
-
+            <setting-item>
                 <div>
-                    <span class="secondary-text http-server-status">正在获取</span>
+                    <setting-text>自动接受加好友请求</setting-text>
+                    <setting-text data-type="secondary">自动接受加好友请求</setting-text>
                 </div>
+                <setting-switch id="autoAcceptFriendRequest"></setting-switch>
+            </setting-item>
 
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary start-http-server"> 重新加载 </button>
-                </div>
-            </div>
+        </setting-list>
+    </setting-panel>
+</setting-section>
 
-            <hr class="horizontal-dividing-line" />
+<setting-section data-title="调试" class="debug">
+    <setting-panel>
+        <setting-list data-direction="column">
 
-            <div class="vertical-list-item">
-                <h2>好友列表</h2>
-
+            <setting-item>
                 <div>
-                    <span class="secondary-text http-server-status">正在获取</span>
+                    <setting-text>调试模式</setting-text>
+                    <setting-text data-type="secondary">在终端输出调试信息</setting-text>
                 </div>
+                <setting-switch id="debugMode"></setting-switch>
+            </setting-item>
 
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary apply-http-port"> 重新加载 </button>
-                </div>
-            </div>
-
-            <hr class="horizontal-dividing-line" />
-
-            <div class="vertical-list-item">
-                <h2>群列表</h2>
-
+            <setting-item>
                 <div>
-                    <span class="secondary-text http-server-status">正在获取</span>
+                    <setting-text>打印IPC通信</setting-text>
+                    <setting-text data-type="secondary">在终端输出IPC通信信息</setting-text>
                 </div>
+                <setting-switch id="debugIPC"></setting-switch>
+            </setting-item>
 
-                <div class="ops-btns">
-                    <button class="q-button q-button--small q-button--secondary apply-http-report"> 重新加载 </button>
-                </div>
-            </div>
+        </setting-list>
+    </setting-panel>
+</setting-section>
 
-        </div>
+<setting-section data-title="关于" class="about">
+    <setting-panel>
+        <setting-list data-direction="column">
 
-    </section>
-
-    <section class="setting">
-
-        <h1>Bot设置</h1>
-
-        <div class="wrap">
-
-            <div class="vertical-list-item">
+            <setting-item>
                 <div>
-                    <h2>自动接受加好友请求</h2>
-                    <span class="secondary-text">自动接受加好友请求</span>
+                    <setting-text>OneBotApi-JS</setting-text>
+                    <setting-text data-type="secondary">在LiteLoaderQQNT上添加OneBot协议支持</setting-text>
                 </div>
+            </setting-item>
 
-                <div class="q-switch">
-                    <span class="q-switch__handle"></span>
-                </div>
-            </div>
-
-            <hr class="horizontal-dividing-line" />
-
-        </div>
-
-    </section>
-
-    <section class="about">
-        <h1>关于</h1>
-        <div class="wrap">
-            <div class="vertical-list-item">
+            <setting-item>
                 <div>
-                    <h2>OneBotApi-JS</h2>
-                    <p class="secondary-text">
-                        在LiteLoaderQQNT上添加OneBot协议支持
-                    </p>
+                    <setting-text>开源协议</setting-text>
+                    <setting-text data-type="secondary">MIT License</setting-text>
                 </div>
-            </div>
-            <hr class="horizontal-dividing-line" />
-            <div class="vertical-list-item">
-                <div>
-                    <h2>开源协议</h2>
-                    <p class="secondary-text">MIT License</p>
-                </div>
-            </div>
-        </div>
-    </section>
+            </setting-item>
 
-</body>
+        </setting-list>
+    </setting-panel>
+</setting-section>

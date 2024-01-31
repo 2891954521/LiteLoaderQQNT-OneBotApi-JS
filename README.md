@@ -20,7 +20,7 @@
 
 ### 支持的API
 
-详见 [HTTP API](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/doc/http.md)
+详见 [HTTP API](https://github.com/2891954521/LiteLoaderQQNT-OneBotApi-JS/blob/main/doc/http.md)
 
 
 ### 支持的消息

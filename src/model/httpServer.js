@@ -3,12 +3,14 @@ const querystring = require('querystring');
 
 const MessageModel = require('./messageModel');
 
+const { Log } = require('../logger');
 const { IPCAction } = require('../common/const');
 const { Data, RuntimeData } = require('../main/core');
 
 
 let server = null;
 
+let errorMsg = null;
 
 const handleURL = {
 
@@ -204,6 +206,69 @@ const handleURL = {
         };
     },
 
+
+    /**
+     * 获取群列表
+     * result:
+     * {
+     *   code: 200,
+     *   msg: "OK",
+     *   data: [
+     *     {
+     *       group_id: 群号,
+     *       group_name: 群名称,
+     *       member_count: 成员数,
+     *       max_member_count: 最大成员数（群容量）
+     *     },
+     *     ...
+     *   ]
+     * }
+     */
+    '/get_group_list': (url, postData) => {
+        return {
+            code: 200,
+            msg: "OK",
+            data: Object.values(Data.groups).map(group => {
+                return {
+                    'group_id': group.groupCode,
+                    'group_name': group.groupName,
+                    'member_count': group.memberCount,
+                    'max_member_count': group.maxMember,
+                }
+            })
+        };
+    },
+
+    /**
+     * 获取群信息
+     * { "group_id": 123456 }
+     *
+     * result:
+     * {
+     *   code: 200,
+     *   msg: "OK",
+     *   data: {
+     *       group_id: 群号,
+     *       group_name: 群名称,
+     *       member_count: 成员数,
+     *       max_member_count: 最大成员数（群容量）
+     *   }
+     * }
+     */
+    '/get_group_info': (url, postData) => {
+        let group = Data.groups[postData.group_id];
+        return {
+            code: 200,
+            msg: "OK",
+            data: {
+                'group_id': group.groupCode,
+                'group_name': group.groupName,
+                'member_count': group.memberCount,
+                'max_member_count': group.maxMember,
+            }
+        };
+    },
+
     /**
      * 处理加好友请求
      * {
@@ -231,9 +296,6 @@ const handleURL = {
             return { code: 400, msg: "Must provide 'flag' and 'approve'." }
         }
     },
-
-    // get_group_info 获取群信息
-    // get_group_list 获取群列表
 
     // delete_msg 撤回消息
     // get_msg 获取消息
@@ -270,7 +332,7 @@ function startHttpServer(port, restart = false){
     if(server){
         if(restart){
             server.close(() => {
-                log(`Http server stopped.`);
+                Log.i(`Http server stopped.`);
             });
         }else{
             return;
@@ -316,26 +378,30 @@ function startHttpServer(port, restart = false){
                     res.end('{ "code": 404, "msg": "Not Found" }');
                 }
             }catch(error){
-                log(error);
+                Log.e(error);
                 res.end(`{ "code": 500, "msg": ${error.toString()} }`);
             }
         });
 
     });
 
-    server.listen(port, '0.0.0.0', () => { 
-        log(`Server running at http://0.0.0.0:${port}/`);
+    server.on('error', (e) => {
+        if (e.code === 'EADDRINUSE') {
+            errorMsg = "端口已被占用";
+            Log.w(`Port ${port} is already in used`);
+        }
+    });
+
+    errorMsg = null;
+
+    server.listen(port, '0.0.0.0', () => {
+        Log.i(`Server running at http://0.0.0.0:${port}/`);
     });
 }
 
 
-function log(...args) {
-    console.log("\x1b[32m[OneBotAPI-HttpServer]\x1b[0m", ...args);
-}
-
-
 module.exports = {
-    getServer: () => server,
+    getErrorMessage: () => errorMsg,
 
     startHttpServer
 }

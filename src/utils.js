@@ -34,6 +34,10 @@ function md5(filePath){
     return hash.digest('hex');
 }
 
+async function wait(ms){
+    return new Promise(resolve => setTimeout(() => resolve(), ms));
+}
+
 /**
  * 从本地文件加载设置信息
  * @param plugin
@@ -72,7 +76,12 @@ function checkAndCompleteKeys(json1, json2){
     const keys1 = Object.keys(json1);
     const keys2 = Object.keys(json2);
     for(const key of keys2){
-        if(!keys1.includes(key)){
+        if(keys1.includes(key)){
+            const keys3 = Object.keys(json1[key]);
+            for(const key1 of Object.keys(json2[key])){
+                if(!keys3.includes(key1)) json1[key][key1] = json2[key][key1];
+            }
+        }else{
             json1[key] = json2[key];
         }
     }
@@ -82,6 +91,7 @@ function checkAndCompleteKeys(json1, json2){
 
 module.exports = {
     md5,
+    wait,
     downloadFile,
 
     logToFile,

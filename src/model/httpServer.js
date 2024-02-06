@@ -19,14 +19,6 @@ const handleURL = {
     },
 
     /**
-     * 开关调试模式
-     */
-    '/debug': (url, postData) => {
-        RuntimeData.isDebugMode = !RuntimeData.isDebugMode;
-        return { code: 200, msg: `debug mode is: ${RuntimeData.isDebugMode}` };
-    },
-
-    /**
      * 调用ntCall
      */
     '/ntCall': async (url, postData) => {
@@ -43,10 +35,23 @@ const handleURL = {
      */
     '/getUserByUid': async (url, postData) => {
         return {
-            code: 200,
-            msg: "OK",
+            status: 'ok',
+            retcode: 0,
             data: await RuntimeData.getUserInfoByUid(postData['uid'])
         };
+    },
+
+    '/__sendMsg': async (url, postData) => {
+        return {
+            status: 'ok',
+            retcode: 0,
+            data: await RuntimeData.ntCall("ns-ntApi", "nodeIKernelMsgService/sendMsg", [{
+                msgId: "0",
+                peer: postData.peer,
+                msgElements: postData.elements,
+                msgAttributeInfos: new Map()
+            }, null])
+        }
     },
 
     /**
@@ -67,10 +72,15 @@ const handleURL = {
      * }
      */
     '/send_msg': async (url, postData) => {
-        return {
-            code: 200,
-            msg: await MessageModel.sendMessage(postData)
-        };
+        let response = await MessageModel.sendMessage(postData);
+        if(response?.msg){
+            response.status = 'failed';
+            response.retcode = 400;
+        }else{
+            response.status = 'ok';
+            response.retcode = 0;
+        }
+        return response;
     },
 
     /**
@@ -91,10 +101,15 @@ const handleURL = {
      * }
      */ 
     '/send_private_msg': async (url, postData) => {
-        return {
-            code: 200,
-            msg: await MessageModel.sendMessage(postData)
-        };
+        let response = await MessageModel.sendMessage(postData);
+        if(response?.msg){
+            response.status = 'failed';
+            response.retcode = 400;
+        }else{
+            response.status = 'ok';
+            response.retcode = 0;
+        }
+        return response;
     },
 
     /**
@@ -115,10 +130,15 @@ const handleURL = {
      * }
      */
     '/send_group_msg': async (url, postData) => {
-        return {
-            code: 200,
-            msg: await MessageModel.sendMessage(postData)
-        };
+        let response = await MessageModel.sendMessage(postData);
+        if(response?.msg){
+            response.status = 'failed';
+            response.retcode = 400;
+        }else{
+            response.status = 'ok';
+            response.retcode = 0;
+        }
+        return response;
     },
 
     /**
@@ -131,7 +151,7 @@ const handleURL = {
      * }
      */
     '/download_file': (url, postData) => {
-        let userInfo = Data.getUserByQQ(postData['user_id']);
+        let userInfo = Data.getInfoByQQ(postData['user_id']);
 
         if(userInfo == null){
             return { code: 400, msg: `User with QQ ${postData['user_id']} not found.` }
@@ -161,7 +181,7 @@ const handleURL = {
 
         RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, obj);
 
-        return { code: 200, msg: "OK" }
+        return { status: 'ok', retcode: 0, }
     },
 
 
@@ -170,8 +190,8 @@ const handleURL = {
      */
     '/get_login_info': (url, postData) => {
         return {
-            code: 200,
-            msg: "OK",
+            status: 'ok',
+            retcode: 0,
             data: Data.selfInfo
         };
     },
@@ -194,8 +214,8 @@ const handleURL = {
      */
     '/get_friend_list': (url, postData) => {
         return {
-            code: 200,
-            msg: "OK",
+            status: 'ok',
+            retcode: 0,
             data: Object.values(Data.friends).map(friend => {
                 return {
                     user_id: friend.uin,
@@ -226,8 +246,8 @@ const handleURL = {
      */
     '/get_group_list': (url, postData) => {
         return {
-            code: 200,
-            msg: "OK",
+            status: 'ok',
+            retcode: 0,
             data: Object.values(Data.groups).map(group => {
                 return {
                     'group_id': group.groupCode,
@@ -258,14 +278,49 @@ const handleURL = {
     '/get_group_info': (url, postData) => {
         let group = Data.groups[postData.group_id];
         return {
-            code: 200,
-            msg: "OK",
+            status: 'ok',
+            retcode: 0,
             data: {
                 'group_id': group.groupCode,
                 'group_name': group.groupName,
                 'member_count': group.memberCount,
                 'max_member_count': group.maxMember,
             }
+        };
+    },
+
+    /**
+     * 获取群成员列表
+     * { "group_id": 123456 }
+     *
+     * result:
+     * {
+     *   code: 200,
+     *   msg: "OK",
+     *   data: []
+     */
+    '/get_group_member_list': async (url, postData) => {
+        let members = await Data.getGroupMemberList(postData.group_id, true);
+        return {
+            status: 'ok',
+            retcode: 0,
+            data: members.map((member) => { return {
+                group_id: postData.group_id,// 群号
+                user_id: member.uin,        // QQ 号
+                nickname: member.nick,      // 昵称
+                card: member.cardName,      // 群名片／备注
+                role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
+                // sex: // 性别，male 或 female 或 unknown
+                // age	number (int32)	年龄
+                // area	string	地区
+                // join_time	number (int32)	加群时间戳
+                // last_sent_time	number (int32)	最后发言时间戳
+                // level	string	成员等级
+                // unfriendly	boolean	是否不良记录成员
+                // title	string	专属头衔
+                // title_expire_time	number (int32)	专属头衔过期时间戳
+                // card_changeable	boolean	是否允许修改群名片
+            }})
         };
     },
 
@@ -279,8 +334,8 @@ const handleURL = {
     '/set_friend_add_request': async (url, postData) => {
         if('flag' in postData && 'approve' in postData){
             return {
-                code: 200,
-                msg: "OK",
+                status: 'ok',
+                retcode: 0,
                 data: await RuntimeData.ntCall(
                     "ns-ntApi",
                     "nodeIKernelBuddyService/approvalFriendRequest",
@@ -293,7 +348,11 @@ const handleURL = {
                 )
             };
         }else{
-            return { code: 400, msg: "Must provide 'flag' and 'approve'." }
+            return {
+                status: 'failed',
+                retcode: 400,
+                msg: "Must provide 'flag' and 'approve'."
+            }
         }
     },
 
@@ -314,7 +373,6 @@ const handleURL = {
     // set_group_add_request 处理加群请求／邀请
     // get_stranger_info 获取陌生人信息
     // get_group_member_info 获取群成员信息
-    // get_group_member_list 获取群成员列表
     // get_group_honor_info 获取群荣誉信息
     // get_record 获取语音
     // get_image 获取图片
@@ -367,10 +425,14 @@ function startHttpServer(port, restart = false){
                     res.end('{ "code": 403, "msg": "Unsupport content type" }');
                     return;
 
-                }else{
+                }else if(body.length > 0){
                     res.end('{ "code": 400, "msg": "Wrong content type" }');
                     return;
+
+                }else{
+                    form = { };
                 }
+
                 const handler = handleURL[req.url];
                 if(handler){
                     res.end(JSON.stringify(await handler(req.url, form)));

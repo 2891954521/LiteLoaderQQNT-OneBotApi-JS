@@ -15,14 +15,6 @@ function loadMain(){
 	// 加载群列表
 	ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]);
 
-	// 获取自身信息
-	// ntCall("ns-BusinessApi", "fetchAuthData", [])
-	// 	.then((selfInfo) => {
-	// 	print(selfInfo);
-	// 	if(!selfInfo) return;
-	// 	ipcRenderer.send(IPCAction.ACTION_UPDATE_SELF_INFO, selfInfo);
-	// });
-
 	ipcRendererOn(IPCAction.ACTION_NT_CALL, (event, data) => {
 		ntCall(data['eventName'], data['cmdName'], data['args'], 'uuid' in data ? data['uuid'] : null)
 	});
@@ -84,25 +76,34 @@ async function onSettingWindowCreated(view){
 		alert("设置成功");
     });
 
+	view.querySelector(".data #updateGroupList").addEventListener("click", () => {
+
+	});
+
+	// 上报自身消息
+	bingToggle(view, ".setting #reportSelfMsg", configData.setting.reportSelfMsg, (enable) => {
+		configData.setting.reportSelfMsg = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
 	// 自动接受好友请求
-	const autoAcceptFriendRequest = view.querySelector(".setting #autoAcceptFriendRequest");
-	autoAcceptFriendRequest.toggleAttribute("is-active", configData.setting.autoAcceptFriendRequest);
-	autoAcceptFriendRequest.addEventListener("click", () => {
-		configData.setting.autoAcceptFriendRequest = autoAcceptFriendRequest.toggleAttribute("is-active");
+	bingToggle(view, ".setting #autoAcceptFriendRequest", configData.setting.autoAcceptFriendRequest, (enable) => {
+		configData.setting.autoAcceptFriendRequest = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
-	const debugMode = view.querySelector(".debug #debugMode");
-	debugMode.toggleAttribute("is-active", configData.debug.debug);
-	debugMode.addEventListener("click", () => {
-		configData.debug.debug = debugMode.toggleAttribute("is-active");
+	bingToggle(view, ".misc #disableUpdate", configData.misc.disableUpdate, (enable) => {
+		configData.misc.disableUpdate = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
-	const debugIPC = view.querySelector(".debug #debugIPC");
-	debugIPC.toggleAttribute("is-active", configData.debug.ipc);
-	debugIPC.addEventListener("click", () => {
-		configData.debug.ipc = debugIPC.toggleAttribute("is-active");
+	bingToggle(view, ".debug #debugMode", configData.debug.debug, (enable) => {
+		configData.debug.debug = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
+	bingToggle(view, ".debug #debugIPC", configData.debug.ipc, (enable) => {
+		configData.debug.ipc = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 }

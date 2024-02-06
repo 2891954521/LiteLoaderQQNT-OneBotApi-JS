@@ -1,4 +1,3 @@
-const path = require("path");
 const { ipcMain, BrowserWindow } = require("electron");
 
 const { IPCAction, defaultSetting} = require('../common/const');
@@ -9,6 +8,8 @@ const utils = require('../utils');
 const httpServer = require('../model/httpServer');
 const ActionHandle = require('../model/actionHandle');
 
+
+const debugIPC = {};
 
 
 function onLoad(plugin) {
@@ -39,6 +40,10 @@ function onLoad(plugin) {
 
     // 主页面是否已加载
     ipcMain.handle(IPCAction.ACTION_IS_LOADED, (event, arg) => RuntimeData.isLoaded());
+
+    ipcMain.handle(IPCAction.ACTION_GET_GROUPS, () => {
+        return Object.values(Data.groups);
+    });
 
     ipcMain.on(IPCAction.ACTION_LOG, (event, args) => {
         console.log("\x1b[32m[OneBotAPI-Render]\x1b[0m", ...args);
@@ -119,7 +124,14 @@ function patchedIPC(_, status, name, ...args) {
         if(name === '___!log') return;
         let eventName = args?.[0]?.[0]?.eventName;
         if(eventName?.startsWith("ns-LoggerApi")) return;
-        Log.d(`[IPC Call] -> _ = ${JSON.stringify(_)}, status = ${status}, name = ${name}, args = ${JSON.stringify(args)}`);
+        let callbackId = args?.[0]?.[0]?.callbackId;
+        if(callbackId){
+            let str = JSON.stringify(args?.[0]?.[1]);
+            // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+            debugIPC[callbackId] = str;
+        }else{
+            Log.d(`[IPC Call] -> ${JSON.stringify(args)}`);
+        }
     }
 }
 
@@ -129,9 +141,33 @@ function patchedIPC(_, status, name, ...args) {
 function patchedSend(channel, ...args){
 
     if(Log.isDebugIPC){
-        if(!args?.[1]?.[0]?.cmdName?.includes("onBuddyListChange")){
-            Log.d(`[IPC Resp] <- ${JSON.stringify(args)}`);
+        let skip = false;
+        if(args?.[0]?.eventName?.startsWith("ns-LoggerApi")) skip = true;
+
+        let cmdName = args?.[1]?.[0]?.cmdName;
+        if(cmdName){
+            if(cmdName.includes("onBuddyListChange")) skip = true;
+            else if(cmdName == "nodeIKernelMsgListener/onMsgInfoListUpdate") skip = true;
+            else if(cmdName == "nodeIKernelMsgListener/onAddSendMsg") skip = true;
+            else if(cmdName == "nodeIKernelRecentContactListener/onRecentContactListChangedVer2") skip = true;
         }
+
+        if(!skip){
+            let callbackId = args?.[0]?.callbackId;
+            if(callbackId){
+                if(args?.[1]){
+                    let str = JSON.stringify(args?.[1]);
+                    // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+                    Log.d(`\x1b[36m[IPC Func]\x1b[0m ${debugIPC[callbackId]} \x1b[36m=>\x1b[0m ${str}`);
+                }
+                delete debugIPC[callbackId];
+            }else{
+                let str = JSON.stringify(args);
+                // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+                Log.d(`[IPC Resp] <- ${str}`);
+            }
+        }
+
     }
 
     const cmdObject = args?.[1]?.[0];

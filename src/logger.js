@@ -6,7 +6,7 @@ class Log {
 	static isDebug = false;
 	static isDebugIPC = false;
 
-	static logFile = './OneBotApi-JS.log';
+	static logPath = './';
 
 	static fileStream = null;
 
@@ -18,9 +18,13 @@ class Log {
 		}
 
 		if(debug){
-			if(logPath) this.logFile = path.join(logPath, "debug.log");
-			this.fileStream = fs.createWriteStream(this.logFile);
-			Log.i(`debug mode is on, debug log to ${this.logFile}`)
+			if(logPath) this.logPath = logPath;
+
+			let d = new Date();
+			let logFile = path.join(this.logPath, `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} ${d.getHours()}-${d.getMinutes()}-${d.getSeconds()}.log`);
+
+			this.fileStream = fs.createWriteStream(logFile);
+			Log.i(`debug mode is on, debug log to ${logFile}`)
 		}
 	}
 	static d(...args){

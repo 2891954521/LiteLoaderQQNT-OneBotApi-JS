@@ -14,6 +14,10 @@ module.exports = {
         ACTION_SEND_MSG: "one_bot_api_send_msg",
         ACTION_RECALL_MSG: "one_bot_api_recall_msg",
 
+        /**
+         * 获取群列表
+         */
+        ACTION_GET_GROUPS: "one_bot_api_get_groups",
 
         ACTION_UPDATE_SELF_INFO: "one_bot_api_set_self_info",
         ACTION_UPDATE_FRIENDS: "one_bot_api_update_friends",
@@ -52,7 +56,12 @@ module.exports = {
         },
 
         "setting": {
+            "reportSelfMsg": true,
             "autoAcceptFriendRequest": false
+        },
+
+        "misc": {
+            'disableUpdate': true
         },
 
         "debug": {

@@ -3,7 +3,7 @@
  */
 
 const { Log } = require("../logger");
-const { Data, RuntimeData } = require('../main/core');
+const { Data, RuntimeData, Setting } = require('../main/core');
 const MessageModel = require('../model/messageModel');
 
 
@@ -17,6 +17,20 @@ function onRecvMsg(arg){
 			.then(() => { }, (err) => {
 				Log.e("解析消息失败: " + err.stack + '\n消息内容: ' + JSON.stringify(messages));
 		})
+	}
+}
+
+
+/**
+ * 监听自己发送的消息，用于获取msgId
+ */
+function onSendMsg(arg){
+	const msgRecord = arg.payload?.msgRecord;
+	if(msgRecord){
+		if(msgRecord.peerUid in RuntimeData.sendMessageCallback){
+			RuntimeData.sendMessageCallback[msgRecord.peerUid](msgRecord.msgId);
+			delete RuntimeData.sendMessageCallback[msgRecord.peerUid];
+		}
 	}
 }
 
@@ -42,12 +56,11 @@ function onBuddyListChange(arg){
 	const friendsCount = Object.keys(friends).length;
 	if(friendsCount === 0) return;
 
-	Log.d(`load ${friendsCount} friends.`);
+	Log.d(`加载 ${friendsCount} 个好友.`);
 
 	Data.friends = friends;
 	Data.userMap = userMap;
 }
-
 
 
 /**
@@ -57,16 +70,9 @@ function onGroupListUpdate(arg){
 	const groupList = arg?.payload?.groupList;
 	if(!groupList) return;
 
-	const groups = {};
+	groupList.forEach((group) => Data.groups[group.groupCode] = group);
 
-	groupList.forEach((group) => groups[group.groupCode] = group);
-
-	const groupsCount = Object.keys(groups).length;
-	if(groupsCount === 0) return;
-
-	Log.d(`load ${groupsCount} groups.`);
-
-	Data.groups = groups;
+	Log.d(`更新 ${Object.keys(groupList).length} 个群聊.`);
 }
 
 
@@ -74,6 +80,8 @@ const handleCmd = {
 
 	"onRecvMsg": onRecvMsg,
 	"nodeIKernelMsgListener/onRecvMsg": onRecvMsg,
+
+	"nodeIKernelMsgListener/onAddSendMsg": onSendMsg,
 
 	"onBuddyListChange": onBuddyListChange,
 	"nodeIKernelBuddyListener/onBuddyListChange": onBuddyListChange,
@@ -116,6 +124,18 @@ const handleCmd = {
 			?.filter(friendRequest => friendRequest.isUnread && !friendRequest.isDecide)
 			.forEach(friendRequest => {
 				RuntimeData.getUserInfoByUid(friendRequest.friendUid).then(info => {
+					if(Setting.setting.setting.autoAcceptFriendRequest){
+						RuntimeData.ntCall(
+							"ns-ntApi",
+							"nodeIKernelBuddyService/approvalFriendRequest",
+							[{
+								"approvalInfo":{
+									"friendUid": friendRequest.friendUid,
+									"accept": true
+								}
+							}, null]
+						).then();
+					}
 					MessageModel.postRequestData({
 						request_type: 'friend',
 						user_id: info.uin,
@@ -155,8 +175,10 @@ const handleCmd = {
 	 * 禁用更新提示
 	 */
 	"nodeIKernelUnitedConfigListener/onUnitedConfigUpdate": (arg) => {
-		arg.payload.configData.content = "";
-		arg.payload.configData.isSwitchOn = false;
+		if(Setting.setting.misc.disableUpdate){
+			arg.payload.configData.content = "";
+			arg.payload.configData.isSwitchOn = false;
+		}
 	}
 }
 

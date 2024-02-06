@@ -5,6 +5,8 @@
 const crypto = require('crypto');
 
 const {IPCAction, defaultSetting} = require("../common/const");
+const {Log} = require("../logger");
+const utils = require("../utils");
 
 /**
  * 数据
@@ -20,33 +22,111 @@ class Data{
 
     /**
      * uid -> QQ号
+     * @type {Object.<string, string>}
      */
     static userMap = {};
 
     /**
+     * @typedef User
+     * @property {string} uid - u_uMB7xxxxxx
+     * @property {string} qid - QID
+     * @property {string} uin - QQ号
+     * @property {string} nick - 昵称
+     * @property {string} remark - 备注
+     * @property {string} longNick - 签名
+     * @property {string} avatarUrl - 头像URL
+     * @property {int} sex - 性别
+     *
+     * @property {number} birthday_year - 生日年份
+     * @property {number} birthday_month - 生日月份
+     * @property {number} birthday_day - 生日日期
+     *
+     * @property {string} topTime - 顶部时间
+     *
+     * @property {boolean} isBlock - 是否被阻止
+     * @property {boolean} isMsgDisturb - 是否消息打扰
+     * @property {boolean} isSpecialCareOpen - 是否开启特别关心
+     * @property {boolean} isSpecialCareZone - 是否特别关心区域
+     *
+     * @property {string} ringId - 铃声ID
+     * @property {number} status - 状态
+     * @property {number} extStatus - 扩展状态
+     * @property {number} categoryId - 类别ID
+     * @property {boolean} onlyChat - 是否仅聊天
+     * @property {boolean} qzoneNotWatch - 是否不观看Qzone
+     * @property {boolean} qzoneNotWatched - Qzone是否被观看
+     *
+     * @property {boolean} vipFlag - 是否是VIP
+     * @property {boolean} yearVipFlag - 是否是年度VIP
+     * @property {boolean} svipFlag - 是否是SVIP
+     * @property {number} vipLevel - VIP等级
+     */
+    /**
      * QQ号 -> 用户
+     * @type {Object.<string, User>}
      */
     static friends = {};
 
     /**
-     * 群成员的信息
-     * uid -> 用户
+     * @typedef {Object} Group
+     * @property {string} groupCode - 群号
+     * @property {string} groupName - 群名称
+     * @property {number} maxMember - 最大成员数
+     * @property {number} memberCount - 成员数
+     * @property {string} remarkName - 备注名称
+     *
+     * @property {boolean} isTop - 是否置顶
+     * @property {number} groupStatus - 群组状态
+     * @property {number} memberRole - 成员角色
+     * @property {string} toppedTimestamp - 置顶时间戳
+     * @property {number} privilegeFlag - 权限标志
+     * @property {boolean} isConf - 是否是会议群
+     * @property {boolean} hasModifyConfGroupFace - 是否可以修改会议群头像
+     * @property {boolean} hasModifyConfGroupName - 是否可以修改会议群名称
+     * @property {boolean} hasMemo - 是否有群公告
+     * @property {string} groupShutupExpireTime - 群禁言到期时间
+     * @property {string} personShutupExpireTime - 个人禁言到期时间
+     * @property {string} discussToGroupUin - 讨论组转群目标 UIN
+     * @property {number} discussToGroupMaxMsgSeq - 讨论组转群消息最大序列号
+     * @property {number} discussToGroupTime - 讨论组转群时间
      */
-    static groupMember = {};
-
     /**
-     * 群号 -> 群信息
+     * 群号 -> 群聊信息
+     * @type {Object.<string, Group>}
      */
     static groups = {};
 
     /**
+     * @typedef GroupMember
+     * @property {string} uid - u_uMB7xxxxxx
+     * @property {string} qid - QID
+     * @property {string} uin - QQ号
+     * @property {string} nick - 昵称
+     * @property {string} remark - 备注
+     * @property {int} cardType -
+     * @property {string} cardName - 群昵称
+     * @property {int} role - 群主:4, 管理员:3, 群员:2
+     * @property {string} avatarPath - 头像URL
+     * @property {int} shutUpTime -
+     * @property {boolean} isDelete -
+     * @property {boolean} isSpecialConcerned -
+     * @property {boolean} isRobot -
+     */
+    /**
+     * 群成员的信息
+     * 群号 -> 群成员列表 -> 群成员信息
+     * @type {Object.<string, Object.<string, GroupMember>>}
+     */
+    static groupMembers = {};
+
+    /**
      * 根据QQ号获取用户信息
      * @param {string} qq 
-     * @returns {object | null}
+     * @returns {User | null}
      */
-    static getUserByQQ(qq){
-        let user = this.friends.hasOwnProperty(qq?.toString()) ? this.friends[qq.toString()] : null;
-        if(user !== undefined){
+    static getInfoByQQ(qq){
+        let user = this.friends[qq?.toString()];
+        if(user){
             return user;
         }else{
             log(`User with QQ ${qq} not found.`);
@@ -57,12 +137,12 @@ class Data{
     /**
      * 根据uid获取用户信息
      * @param {string} uid
-     * @returns {object | null}
+     * @returns {User | null}
      */
-    static getUserByUid(uid){
-        let qq = this.userMap.hasOwnProperty(uid.toString()) ? this.userMap[uid.toString()] : null;
+    static getInfoByUid(uid){
+        let qq = this.userMap[uid?.toString()];
         if(qq){
-            return this.getUserByQQ(qq);
+            return this.getInfoByQQ(qq);
         }else{
             log(`User with uid ${uid} not found.`);
             return null;
@@ -71,18 +151,104 @@ class Data{
 
     /**
      * 根据群号获取群信息
-     * @param {string} uid
-     * @return {Object | null}
+     * @param {string} groupId
+     * @return {Group | null}
      */
-    static getGroupByUid(uid){
-        let group = this.groups.hasOwnProperty(uid.toString()) ? this.groups[uid.toString()] : null;
+    static getGroupById(groupId){
+        let group = this.groups[groupId?.toString()];
         if(group){
             return group;
         }else{
-            log(`Group with uid ${uid} not found.`);
+            log(`Group with uid ${groupId} not found.`);
             return null;
         }
     }
+
+
+    /**
+     * 根据 uid 获取群成员信息
+     * @param groupId {string} 群号
+     * @param uid {string} 用户uid
+     * @return {GroupMember | null}
+     */
+    static async getGroupMemberByUid(groupId, uid){
+        let members = await this.__getGroupMembers(groupId);
+        return members[uid] || (Log.w(`getGroupMemberByUid: 用户 uid(${uid}) 在 群(${groupId}) 内不存在`), null);
+    }
+
+
+    /**
+     * 根据 QQ号 获取群成员信息
+     * @param groupId 群号
+     * @param qq {string}
+     * @return {GroupMember | null}
+     */
+    static async getGroupMemberByQQ(groupId, qq){
+        let members = await this.getGroupMemberList(groupId);
+        let member = members.find(m => m.uin == qq);
+        return member || (Log.w(`getGroupMemberByQQ: 用户 QQ(${qq}) 在 群(${groupId}) 内不存在`), null);
+    }
+
+
+    /**
+     * 获取群成员列表
+     * @param groupId 群号
+     * @param force 是否强制更新
+     * @return {Promise<Array<GroupMember>>}
+     */
+    static async getGroupMemberList(groupId, force = false) {
+        let group = this.getGroupById(groupId);
+        if(!group){
+            Log.w(`getGroupMemberList: 群(${groupId})不存在`);
+            return [];
+        }
+
+        if(!force){
+            let members = this.groupMembers[group.groupCode];
+            if(members){
+                let r = Object.values(members);
+                if(r.length > 0) return r;
+            }
+        }
+        await this.__updateGroupMember(group.groupCode, group.memberCount)
+        return Object.values(this.groupMembers[group.groupCode] || {});
+    }
+
+    /**
+     * 获取群成员列表
+     * @return {Promise<Object.<string, GroupMember>>}
+     */
+    static async __getGroupMembers(groupId){
+        // 有缓存直接使用缓存
+        let members = this.groupMembers[groupId];
+        if(members) return members;
+
+        // 群不存在
+        let group = this.getGroupById(groupId);
+        if(!group) return {};
+
+        await this.__updateGroupMember(groupId, group.memberCount);
+        return this.groupMembers[groupId] || {};
+    }
+
+    // 更新群聊成员
+    static async __updateGroupMember(groupId, num = 30, retry = true){
+        let members = await RuntimeData.getGroupMembers(groupId, num);
+
+        if(members && members?.size > 0){
+            Log.d(`加载 群(${groupId}) 成员列表，共计${members.size}人`);
+            let obj = {};
+            for(let [key, value] of members) obj[key] = value;
+            this.groupMembers[groupId] = obj;
+        }else if(retry){
+            Log.d(`重新尝试加载 群(${groupId}) 成员列表`);
+            await utils.wait(1000);
+            await this.__updateGroupMember(groupId, num, false);
+        }else{
+            Log.e(`无法获取 群(${groupId}) 成员列表`)
+        }
+    }
+
 }
 
 /**
@@ -101,16 +267,11 @@ class RuntimeData{
      */
     static mainPage = null;
 
-    /**
-     * 是否为调试模式
-     */
-    static isDebugMode = false;
-
-    static isDebugIPC = false;
-
     static ntCallCallback = { };
 
     static getUserInfoCallback = { };
+
+    static sendMessageCallback = { };
 
     /**
      * 主界面是否已加载
@@ -119,8 +280,8 @@ class RuntimeData{
         return this.mainPage != null;
     }
 
-    static async ntCall(eventName, cmdName, args){
-        return await new Promise((resolve) => {
+    static ntCall(eventName, cmdName, args){
+        return new Promise((resolve) => {
             const uuid = crypto.randomUUID();
             this.ntCallCallback[uuid] = resolve;
             this.mainPage.send(IPCAction.ACTION_NT_CALL, {
@@ -135,8 +296,8 @@ class RuntimeData{
     /**
      * 从网络拉取最新的用户信息
      */
-    static async getUserInfoByUid(uid){
-        return await new Promise((resolve) => {
+    static getUserInfoByUid(uid){
+        return new Promise((resolve) => {
             this.getUserInfoCallback[uid.toString()] = resolve;
             this.mainPage.send(IPCAction.ACTION_NT_CALL, {
                 "eventName": "ns-ntApi",
@@ -144,6 +305,45 @@ class RuntimeData{
                 "args": [ { "uid": uid.toString() }, undefined ]
             });
         });
+    }
+
+    /**
+     * 发送消息，并返还msgId
+     * @param peer
+     * @param messages
+     * @return {Promise<string>}
+     */
+    static sendMessage(peer, messages){
+        return new Promise((resolve) => {
+            this.sendMessageCallback[peer.peerUid] = resolve;
+            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
+                "eventName": "ns-ntApi",
+                "cmdName": "nodeIKernelMsgService/sendMsg",
+                "args": [{
+                    msgId: "0",
+                    peer: peer,
+                    msgElements: messages,
+                    msgAttributeInfos: new Map()
+                }, null]
+            });
+        });
+    }
+
+    /**
+     * 获取群成员列表，有可能为空
+     * @param groupId {string} 群号
+     * @param num {number} 成员数量
+     * @return {Promise<Map<string, GroupMember>>}
+     */
+    static async getGroupMembers(groupId, num){
+        let sceneId = await RuntimeData.ntCall("ns-ntApi",  "nodeIKernelGroupService/createMemberListScene",
+            [{ groupCode: groupId, scene: "groupMemberList_MainWindow"}]
+        )
+        let res = await RuntimeData.ntCall("ns-ntApi",  "nodeIKernelGroupService/getNextMemberList",
+            [{ sceneId: sceneId, num: num}, null]
+        );
+
+        return res.result.infos;
     }
 }
 

@@ -4,6 +4,7 @@ const querystring = require('querystring');
 const MessageModel = require('./messageModel');
 
 const { Log } = require('../logger');
+const { createPeer } = require('../common/message');
 const { IPCAction } = require('../common/const');
 const { Data, RuntimeData } = require('../main/core');
 
@@ -34,11 +35,12 @@ const handleURL = {
      *
      */
     '/getUserByUid': async (url, postData) => {
-        return {
-            status: 'ok',
-            retcode: 0,
-            data: await RuntimeData.getUserInfoByUid(postData['uid'])
-        };
+        try{
+            return await RuntimeData.getUserInfoByUid(postData['uid']);
+        }catch(e){
+            return e.stack.toString();
+        }
+
     },
 
     '/__sendMsg': async (url, postData) => {
@@ -161,27 +163,56 @@ const handleURL = {
             return { code: 400, msg: "Must provide 'msgId' and 'elementId'." }
         }
 
-        let obj = {
-            "eventName": "ns-ntApi",
-            "cmdName": "nodeIKernelMsgService/downloadRichMedia",
-            "args": [
-                {
-                    "getReq": {
-                        "msgId": postData['msgId'],
-                        "chatType": 1,
-                        "peerUid": userInfo.uid,
-                        "elementId": postData['elementId'],
-                        "thumbSize": 0,
-                        "downloadType": 1,
-                        "filePath": postData['downloadPath'] || ""
-                    }
+        RuntimeData.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia",[
+            {
+                "getReq": {
+                    "msgId": postData['msgId'],
+                    "chatType": 1,
+                    "peerUid": userInfo.uid,
+                    "elementId": postData['elementId'],
+                    "thumbSize": 0,
+                    "downloadType": 1,
+                    "filePath": postData['downloadPath'] || ""
                 }
-            ]
-        }
-
-        RuntimeData.mainPage.send(IPCAction.ACTION_NT_CALL, obj);
+            }
+        ]).then();
 
         return { status: 'ok', retcode: 0, }
+    },
+
+    '/delete_msg': async(url, postData) => {
+        let peer = Data.historyMessage.get(postData.message_id);
+        if(peer){
+            peer.guildId = '';
+        }else{
+            let peer = createPeer(postData.group_id, postData.user_id);
+            if(!peer){
+                return {
+                    status: 'failed',
+                    retcode: 400,
+                    msg: "消息不存在"
+                }
+            }
+        }
+
+        let result = await RuntimeData.ntCall(
+            "ns-ntApi",
+            "nodeIKernelMsgService/recallMsg",
+            [{ peer, "msgIds": [ postData.message_id.toString() ]
+            }, null]);
+
+        if(result.result == 0){
+            return {
+                status: 'ok',
+                retcode: 0,
+            }
+        }else{
+            return {
+                status: 'failed',
+                retcode: result.result,
+                msg: result.errMsg,
+            }
+        }
     },
 
 
@@ -192,7 +223,9 @@ const handleURL = {
         return {
             status: 'ok',
             retcode: 0,
-            data: Data.selfInfo
+            data: {
+                'user_id': Data.selfInfo.account
+            }
         };
     },
 
@@ -310,16 +343,6 @@ const handleURL = {
                 nickname: member.nick,      // 昵称
                 card: member.cardName,      // 群名片／备注
                 role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
-                // sex: // 性别，male 或 female 或 unknown
-                // age	number (int32)	年龄
-                // area	string	地区
-                // join_time	number (int32)	加群时间戳
-                // last_sent_time	number (int32)	最后发言时间戳
-                // level	string	成员等级
-                // unfriendly	boolean	是否不良记录成员
-                // title	string	专属头衔
-                // title_expire_time	number (int32)	专属头衔过期时间戳
-                // card_changeable	boolean	是否允许修改群名片
             }})
         };
     },
@@ -356,7 +379,6 @@ const handleURL = {
         }
     },
 
-    // delete_msg 撤回消息
     // get_msg 获取消息
     // get_forward_msg 获取合并转发消息
     // send_like 发送好友赞

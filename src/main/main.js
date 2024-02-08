@@ -8,10 +8,6 @@ const utils = require('../utils');
 const httpServer = require('../model/httpServer');
 const ActionHandle = require('../model/actionHandle');
 
-
-const debugIPC = {};
-
-
 function onLoad(plugin) {
 
     const setting = utils.loadSetting(plugin);
@@ -21,8 +17,7 @@ function onLoad(plugin) {
         utils.saveSetting(defaultSetting);
     }
 
-    Log.setDebug(Setting.setting.debug.debug, plugin.path.data);
-    Log.isDebugIPC = Setting.setting.debug.ipc;
+    Log.setDebug(Setting.setting.debug.debug, Setting.setting.debug.ipc, plugin.path.data);
 
     ipcMain.on('one_bot_api_get_runtime_data', (event) => {
         event.returnValue = {
@@ -38,8 +33,6 @@ function onLoad(plugin) {
     // 获取HTTP服务器状态
     ipcMain.handle(IPCAction.ACTION_HTTP_SERVER_STATUS, (event) => httpServer.getErrorMessage());
 
-    // 主页面是否已加载
-    ipcMain.handle(IPCAction.ACTION_IS_LOADED, (event, arg) => RuntimeData.isLoaded());
 
     ipcMain.handle(IPCAction.ACTION_GET_GROUPS, () => {
         return Object.values(Data.groups);
@@ -52,34 +45,23 @@ function onLoad(plugin) {
     ipcMain.on(IPCAction.ACTION_LOAD_MAIN_PAGE, (event, arg) => {
         if(RuntimeData.isLoaded()){
             Log.w('主页面已加载');
-            return;
+            return false;
         }
 
-        BrowserWindow.getAllWindows().some((window) => {
-            const webContents = window.webContents;
-            if(webContents.getURL().includes('#/main/message')){
-                Log.d("正在加载Bot框架");
+        const window = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().includes('#/main/message'));
+        if(window){
+            RuntimeData.init(ipcMain, window.webContents);
+            httpServer.startHttpServer(Setting.setting.http.port);
+            return true;
+        }
 
-                RuntimeData.mainPage = webContents;
-                httpServer.startHttpServer(Setting.setting.http.port);
-
-                RuntimeData.ntCall("ns-GlobalDataApi", "fetchAuthData", []).then(info => {
-                    Log.d(`当前账号信息: uid: ${info.uid}, uin: ${info.uin}`);
-                    Data.selfInfo = info;
-                });
-
-                return true;
-            }else{
-                return false;
-            }
-        });
+        Log.e('无法加载Bot框架');
+        return false;
     });
 
     ipcMain.on(IPCAction.ACTION_SET_CONFIG, (event, setting) => {
         Setting.setting = setting;
-        Log.setDebug(setting.debug.debug);
-        Log.isDebugIPC = setting.debug.ipc;
-        Log.i(`debug is: ${setting.debug.debug}, debug pic is: ${setting.debug.ipc}`);
+        Log.setDebug(setting.debug.debug, setting.debug.ipc);
         utils.saveSetting(setting);
     });
 
@@ -90,8 +72,10 @@ function onLoad(plugin) {
 function onBrowserWindowCreated(window){
     const original_send = (window.webContents.__qqntim_original_object && window.webContents.__qqntim_original_object.send) || window.webContents.send;
     const patched_send = function(channel, ...args){
-        patchedSend(channel, ...args);
-        return original_send.call(window.webContents, channel, ...args);
+        if(!patchedSend(channel, ...args)){
+            // 调用原始的send方法
+            return original_send.call(window.webContents, channel, ...args);
+        }
     };
 
     if(window.webContents.__qqntim_original_object){
@@ -120,55 +104,14 @@ function onBrowserWindowCreated(window){
  * 监听渲染进程向主进程发送的消息
  */
 function patchedIPC(_, status, name, ...args) {
-    if(Log.isDebugIPC){
-        if(name === '___!log') return;
-        let eventName = args?.[0]?.[0]?.eventName;
-        if(eventName?.startsWith("ns-LoggerApi")) return;
-        let callbackId = args?.[0]?.[0]?.callbackId;
-        if(callbackId){
-            let str = JSON.stringify(args?.[0]?.[1]);
-            // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
-            debugIPC[callbackId] = str;
-        }else{
-            Log.d(`[IPC Call] -> ${JSON.stringify(args)}`);
-        }
-    }
+    if(Log.isDebugIPC) Log.ipcDebugger.IPCSend(_, status, name, ...args);
 }
 
 /**
  * 解析向渲染进程发送的消息
  */
 function patchedSend(channel, ...args){
-
-    if(Log.isDebugIPC){
-        let skip = false;
-        if(args?.[0]?.eventName?.startsWith("ns-LoggerApi")) skip = true;
-
-        let cmdName = args?.[1]?.[0]?.cmdName;
-        if(cmdName){
-            if(cmdName.includes("onBuddyListChange")) skip = true;
-            else if(cmdName == "nodeIKernelMsgListener/onMsgInfoListUpdate") skip = true;
-            else if(cmdName == "nodeIKernelMsgListener/onAddSendMsg") skip = true;
-            else if(cmdName == "nodeIKernelRecentContactListener/onRecentContactListChangedVer2") skip = true;
-        }
-
-        if(!skip){
-            let callbackId = args?.[0]?.callbackId;
-            if(callbackId){
-                if(args?.[1]){
-                    let str = JSON.stringify(args?.[1]);
-                    // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
-                    Log.d(`\x1b[36m[IPC Func]\x1b[0m ${debugIPC[callbackId]} \x1b[36m=>\x1b[0m ${str}`);
-                }
-                delete debugIPC[callbackId];
-            }else{
-                let str = JSON.stringify(args);
-                // if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
-                Log.d(`[IPC Resp] <- ${str}`);
-            }
-        }
-
-    }
+    if(Log.isDebugIPC) Log.ipcDebugger.IPCReceive(channel, ...args);
 
     const cmdObject = args?.[1]?.[0];
     if(cmdObject?.cmdName){
@@ -180,8 +123,10 @@ function patchedSend(channel, ...args){
         if(id in RuntimeData.ntCallCallback){
             RuntimeData.ntCallCallback[id](args[1]);
             delete RuntimeData.ntCallCallback[id];
+            return true;
         }
     }
+    return false;
 }
 
 if(LiteLoader?.plugins?.['OneBotApi-JS']){

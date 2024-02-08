@@ -10,12 +10,16 @@ class Log {
 
 	static fileStream = null;
 
-	static setDebug(debug, logPath){
-		this.isDebug = debug;
+	/** @type IPCDebugger */
+	static ipcDebugger = null;
 
-		if(this.fileStream){
-			this.fileStream.end();
-		}
+	static setDebug(debug, isDebugIPC, logPath){
+		this.isDebug = debug;
+		this.isDebugIPC = isDebugIPC;
+
+		if(this.isDebugIPC) this.ipcDebugger = new IPCDebugger();
+
+		if(this.fileStream) this.fileStream.end();
 
 		if(debug){
 			if(logPath) this.logPath = logPath;
@@ -27,6 +31,7 @@ class Log {
 			Log.i(`debug mode is on, debug log to ${logFile}`)
 		}
 	}
+
 	static d(...args){
 		if(this.isDebug){
 			console.log("\x1b[37m[OneBotAPI-Debug]\x1b[0m", ...args);
@@ -56,6 +61,60 @@ class Log {
 	}
 }
 
+
+class IPCDebugger {
+
+	debugIPC = {};
+
+	blackList = [
+		"nodeIKernelMsgListener/onAddSendMsg",
+		"nodeIKernelMsgListener/onMsgInfoListUpdate",
+		"nodeIKernelProfileListener/onProfileDetailInfoChanged",
+		"nodeIKernelRecentContactListener/onRecentContactListChangedVer2",
+	]
+
+	constructor(){
+
+	}
+
+	IPCSend(_, status, name, ...args) {
+		if(name === '___!log') return;
+		let eventName = args?.[0]?.[0]?.eventName;
+		if(eventName?.startsWith("ns-LoggerApi")) return;
+		let callbackId = args?.[0]?.[0]?.callbackId;
+		if(callbackId){
+			// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+			this.debugIPC[callbackId] = JSON.stringify(args?.[0]);
+		}else{
+			Log.d(`[IPC Call] -> ${JSON.stringify(args)}`);
+		}
+	}
+
+	IPCReceive(channel, ...args){
+		if(args?.[0]?.eventName?.startsWith("ns-LoggerApi")) return;
+
+		let cmdName = args?.[1]?.[0]?.cmdName;
+		if(cmdName){
+			if(cmdName.includes("onBuddyListChange")) return;
+			else if(cmdName in this.blackList) return;
+		}
+
+		let callbackId = args?.[0]?.callbackId;
+		if(callbackId){
+			if(args?.[1]){
+				let str = JSON.stringify(args?.[1]);
+				// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+				Log.d(`\x1b[36m[IPC Func]\x1b[0m ${this.debugIPC[callbackId]} \x1b[36m=>\x1b[0m ${str}`);
+			}
+			delete this.debugIPC[callbackId];
+		}else{
+			let str = JSON.stringify(args);
+			// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+			Log.d(`[IPC Resp] <- ${str}`);
+		}
+
+	}
+}
 
 module.exports = {
 	Log,

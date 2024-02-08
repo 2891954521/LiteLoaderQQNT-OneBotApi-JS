@@ -106,7 +106,7 @@ class Face extends Message{
 	static QQNT2OneBot(element){
 		return {
 			type: "face",
-			data: { text: element.faceElement.faceIndex }
+			data: { id: element.faceElement.faceIndex }
 		}
 	}
 
@@ -363,6 +363,52 @@ function OneBot2CqCode(item){
 	}
 }
 
+
+/**
+ * 创建发送消息的对象
+ * @param group_id
+ * @param user_id
+ * @return { {
+ * 		peerUid: string,
+ * 		guildId: string,
+ * 		chatType: number
+ * } | null }
+ */
+function createPeer(group_id, user_id){
+	if(group_id){
+		let group = Data.getGroupById(group_id);
+
+		if(!group){
+			Log.e(`Unable to find group with ${group_id}`);
+			return null;
+
+		}else{
+			return {
+				chatType: 2,
+				peerUid: group.groupCode,
+				guildId: ""
+			}
+		}
+	}else if(user_id){
+		let friend = Data.getInfoByQQ(user_id);
+
+		if(!friend){
+			Log.e(`Unable to find friend with QQ ${user_id}`);
+			return null;
+
+		}else{
+			return {
+				chatType: 1,
+				peerUid: friend.uid,
+				guildId: ""
+			}
+		}
+	}else{
+		return null;
+	}
+}
+
+
 module.exports = {
 	Text,
 	Face,
@@ -370,6 +416,8 @@ module.exports = {
 	Image,
 	File,
 	Reply,
+
+	createPeer,
 
 	OneBot2CqCode,
 }

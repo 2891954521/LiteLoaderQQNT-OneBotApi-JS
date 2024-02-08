@@ -5,51 +5,11 @@
 const { Log } = require('../logger');
 const { Data, RuntimeData, Setting } = require('../main/core');
 
-const { Text, Face, At, Image, File, Reply, OneBot2CqCode } = require("../common/message");
-
-
-/**
- * 创建发送消息的对象
- * @param postData
- * @return { {
- * 		peerUid: string,
- * 		guildId: string,
- * 		chatType: number
- * } | null }
- */
-function createPeer(postData){
-	if(postData["group_id"]){
-		let group = Data.getGroupById(postData['group_id']);
-
-		if(!group){
-			Log.e(`Unable to find group with ${postData['group_id']}`);
-			return null;
-
-		}else{
-			return {
-				chatType: 2,
-				peerUid: group.groupCode,
-				guildId: ""
-			}
-		}
-	}else if(postData["user_id"]){
-		let friend = Data.getInfoByQQ(postData['user_id']);
-
-		if(!friend){
-			Log.e(`Unable to find friend with QQ ${postData['user_id']}`);
-			return null;
-
-		}else{
-			return {
-				chatType: 1,
-				peerUid: friend.uid,
-				guildId: ""
-			}
-		}
-	}else{
-		return null;
-	}
-}
+const {
+	Text, Face, At, Image, File, Reply,
+	createPeer,
+	OneBot2CqCode
+} = require("../common/message");
 
 
 /**
@@ -57,10 +17,10 @@ function createPeer(postData){
  * @param postData
  */
 async function sendMessage(postData){
-    let peer = createPeer(postData);
+    let peer = createPeer(postData.group_id, postData.user_id);
 
 	if(!peer) return {
-		msg: postData.group_id ? `找不到群 (${postData.group_id})` : `找不到好友 (${postData?.user_id})`
+		msg: postData.group_id ? `找不到群 (${postData.group_id})` : `找不到好友 (${postData.user_id})`
 	};
 
     let messages = [];
@@ -91,15 +51,16 @@ async function sendMessage(postData){
 			}
 		}
 
-		if(Setting.setting.debug.debug){
-			let content = postData.message.map(item => OneBot2CqCode(item)).join('');
-			if(postData.group_id) Log.i(`发送群 (${postData.group_id}) 消息：${content}`);
-			else Log.i(`发送好友 (${postData.user_id}) 消息：${content}`);
-		}
+		let content = postData.message.map(item => OneBot2CqCode(item)).join('');
+		if(postData.group_id) Log.i(`发送群 (${postData.group_id}) 消息：${content}`);
+		else Log.i(`发送好友 (${postData.user_id}) 消息：${content}`);
+
     }
 
 	return {
-		message_id: await RuntimeData.sendMessage(peer, messages)
+		data: {
+			message_id: await RuntimeData.sendMessage(peer, messages)
+		}
 	};
 }
 
@@ -167,11 +128,11 @@ async function handleNewMessage(messages){
 			}
 		}
 
-		if(Setting.setting.debug.debug){
-			let content = msgData.message.map(item => OneBot2CqCode(item)).join('');
-			if(msgData.group_id) Log.i(`收到群 (${msgData.group_id}) 内 (${msgData.user_id}) 的消息：${content}`);
-			else Log.i(`收到好友 (${msgData.user_id}) 的消息：${content}`);
-		}
+		let content = msgData.message.map(item => OneBot2CqCode(item)).join('');
+		if(msgData.group_id) Log.i(`收到群 (${msgData.group_id}) 内 (${msgData.user_id}) 的消息：${content}`);
+		else Log.i(`收到好友 (${msgData.user_id}) 的消息：${content}`);
+
+		Data.pushHistoryMessage(message);
 
 		if(msgData.user_id != msgData.self_id || Setting.setting.setting.reportSelfMsg){
 			postHttpData(msgData);

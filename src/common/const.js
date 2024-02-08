@@ -24,16 +24,10 @@ module.exports = {
         ACTION_UPDATE_GROUPS: "one_bot_api_update_groups",
 
 
-        ACTION_NT_CALL: "one_bot_api_nt_call",
         ACTION_GET_USER_BY_UID: "one_bot_api_get_user_by_uid",
 
 
         ACTION_DOWNLOAD_FILE: "one_bot_api_download_file",
-
-        /**
-         * 主界面是否已加载
-         */
-        ACTION_IS_LOADED: "one_bot_api_is_loaded",
 
         /**
          * 主界面加载

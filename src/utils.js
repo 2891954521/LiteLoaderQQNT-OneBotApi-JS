@@ -89,6 +89,34 @@ function checkAndCompleteKeys(json1, json2){
 }
 
 
+class LimitedHashMap{
+    constructor(capacity){
+        this.capacity = capacity;
+        this.map = {};
+        this.keys = [];
+    }
+
+    put(key, value){
+        // 如果键不存在，检查容量是否达到上限
+        if(this.keys.length >= this.capacity){
+            // 移除最早的数据
+            const oldestKey = this.keys.shift();
+            delete this.map[oldestKey];
+        }
+        // 添加新数据
+        this.map[key] = value;
+        this.keys.push(key);
+    }
+
+    get(key){
+        if(this.map.hasOwnProperty(key)){
+            return this.map[key];
+        }else{
+            return null;
+        }
+    }
+}
+
 module.exports = {
     md5,
     wait,
@@ -99,4 +127,6 @@ module.exports = {
 
     loadSetting,
     saveSetting,
+
+    LimitedHashMap,
 }

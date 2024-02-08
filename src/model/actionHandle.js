@@ -27,6 +27,7 @@ function onRecvMsg(arg){
 function onSendMsg(arg){
 	const msgRecord = arg.payload?.msgRecord;
 	if(msgRecord){
+		Data.pushHistoryMessage(msgRecord);
 		if(msgRecord.peerUid in RuntimeData.sendMessageCallback){
 			RuntimeData.sendMessageCallback[msgRecord.peerUid](msgRecord.msgId);
 			delete RuntimeData.sendMessageCallback[msgRecord.peerUid];

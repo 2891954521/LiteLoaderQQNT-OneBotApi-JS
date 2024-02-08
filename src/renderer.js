@@ -1,26 +1,6 @@
 const ipcRenderer = window.OneBotApi.ipcRenderer_OneBot;
-const ipcRendererOn = window.OneBotApi.ipcRenderer_ON_OneBot;
 
 const pluginPath = LiteLoader.plugins['OneBotApi-JS'].path.plugin;
-
-function loadMain(){
-	const isDebug = window.OneBotApi.isDebug;
-	const IPCAction = window.OneBotApi.IPCAction;
-
-	if(isDebug) print('loadMain');
-
-	// 更新好友列表
-	ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]);
-
-	// 加载群列表
-	ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]);
-
-	ipcRendererOn(IPCAction.ACTION_NT_CALL, (event, data) => {
-		ntCall(data['eventName'], data['cmdName'], data['args'], 'uuid' in data ? data['uuid'] : null)
-	});
-
-	if(isDebug) print('loadMain done');
-}
 
 async function onConfigView(view){
 
@@ -109,19 +89,6 @@ async function onSettingWindowCreated(view){
 }
 
 
-function ntCall(eventName, cmdName, args, uuid = null){
-	const webContentsId = window.OneBotApi.webContentsId;
-	ipcRenderer.send(
-		`IPC_UP_${webContentsId}`,
-		{
-			type: "request",
-			callbackId: uuid === null ? crypto.randomUUID() : uuid,
-			eventName: `${eventName}-${webContentsId}`,
-		},
-		[cmdName, ...args]
-	);
-}
-
 function bingToggle(view, selector, value, callback){
 	const toggle = view.querySelector(selector);
 	toggle.toggleAttribute("is-active", value);
@@ -138,7 +105,6 @@ function print(...args){
 const url = location.href;
 if(url.includes("/index.html") && url.includes("#/main/message")){
 	ipcRenderer.send('one_bot_api_load_main_page');
-	loadMain();
 }else{
 	navigation.addEventListener("navigatesuccess", function func(event){
 		const url = event.target.currentEntry.url;
@@ -146,7 +112,6 @@ if(url.includes("/index.html") && url.includes("#/main/message")){
 		if(url.includes("/index.html") && url.includes("#/main/message")){
 			navigation.removeEventListener("navigatesuccess", func);
 			ipcRenderer.send('one_bot_api_load_main_page')
-			loadMain();
 		}
 	});
 }

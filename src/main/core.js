@@ -4,9 +4,11 @@
 
 const crypto = require('crypto');
 
-const {IPCAction, defaultSetting} = require("../common/const");
-const {Log} = require("../logger");
+const { Log } = require("../logger");
+const { IPCAction, defaultSetting} = require("../common/const");
+
 const utils = require("../utils");
+const {LimitedHashMap} = require("../utils");
 
 /**
  * 数据
@@ -17,7 +19,9 @@ class Data{
      * 自身信息
      */
     static selfInfo = {
-        uin: 0,
+        account: "",
+        uin: "",
+        uid: "",
     };
 
     /**
@@ -118,6 +122,16 @@ class Data{
      * @type {Object.<string, Object.<string, GroupMember>>}
      */
     static groupMembers = {};
+
+
+    static historyMessage = new LimitedHashMap(1000);
+
+    static pushHistoryMessage(msgRecord){
+        this.historyMessage.put(msgRecord.msgId, {
+            chatType: msgRecord.chatType,
+            peerUid: msgRecord.peerUid
+        });
+    }
 
     /**
      * 根据QQ号获取用户信息
@@ -262,16 +276,46 @@ class Setting{
  * 运行需要的数据
  */
 class RuntimeData{
+
+    static ipcMain = null;
+
     /**
      * 主界面的webContents
      */
     static mainPage = null;
+
+    static webContentsId = '2';
 
     static ntCallCallback = { };
 
     static getUserInfoCallback = { };
 
     static sendMessageCallback = { };
+
+    /**
+     * 初始化Bot框架
+     * @param ipcMain
+     * @param webContents
+     */
+    static init(ipcMain, webContents){
+        Log.i("正在加载Bot框架");
+
+        this.ipcMain = ipcMain;
+        this.mainPage = webContents;
+        this.webContentsId = webContents.id.toString();
+
+        this.ntCall("ns-GlobalDataApi", "fetchAuthData", []).then(info => {
+            Log.d(`当前账号信息: uid: ${info.uid}, uin: ${info.uin}`);
+            Data.selfInfo = info;
+        });
+
+        // 获取好友列表
+        this.ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]).then();
+        // 获取群列表
+        this.ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]).then();
+
+        Log.i("Bot框架加载完成");
+    }
 
     /**
      * 主界面是否已加载
@@ -284,13 +328,13 @@ class RuntimeData{
         return new Promise((resolve) => {
             const uuid = crypto.randomUUID();
             this.ntCallCallback[uuid] = resolve;
-            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
-                "eventName": eventName,
-                "cmdName": cmdName,
-                "args": args,
-                "uuid": uuid
-            });
-        });
+            this.ipcMain.emit(
+                `IPC_UP_${this.webContentsId}`,
+                { }, // IpcMainEvent
+                { type: 'request', callbackId: uuid, eventName: eventName + "-" + this.webContentsId },
+                [cmdName, ...args],
+            );
+        })
     }
 
     /**
@@ -299,11 +343,9 @@ class RuntimeData{
     static getUserInfoByUid(uid){
         return new Promise((resolve) => {
             this.getUserInfoCallback[uid.toString()] = resolve;
-            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
-                "eventName": "ns-ntApi",
-                "cmdName": "nodeIKernelProfileService/getUserDetailInfo",
-                "args": [ { "uid": uid.toString() }, undefined ]
-            });
+            this.ntCall("ns-ntApi", "nodeIKernelProfileService/getUserDetailInfo",
+                [ { "uid": uid.toString() }, undefined ]
+            ).then();
         });
     }
 
@@ -316,16 +358,12 @@ class RuntimeData{
     static sendMessage(peer, messages){
         return new Promise((resolve) => {
             this.sendMessageCallback[peer.peerUid] = resolve;
-            this.mainPage.send(IPCAction.ACTION_NT_CALL, {
-                "eventName": "ns-ntApi",
-                "cmdName": "nodeIKernelMsgService/sendMsg",
-                "args": [{
-                    msgId: "0",
-                    peer: peer,
-                    msgElements: messages,
-                    msgAttributeInfos: new Map()
-                }, null]
-            });
+            this.ntCall("ns-ntApi",  "nodeIKernelMsgService/sendMsg", [{
+                msgId: "0",
+                peer: peer,
+                msgElements: messages,
+                msgAttributeInfos: new Map()
+            }, null]).then();
         });
     }
 

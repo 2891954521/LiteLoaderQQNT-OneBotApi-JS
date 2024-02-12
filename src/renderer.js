@@ -14,88 +14,141 @@ async function onSettingWindowCreated(view){
 
 	view.innerHTML = await (await fetch(`local:///${pluginPath}/src/common/setting.html`)).text();
 
-
+	const wsStatus = view.querySelector('.ws #wsServerStatus');
 	const httpStatus = view.querySelector('.http #httpServerStatus');
 
-	ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(errorMessage => {
-		httpStatus.innerHTML = errorMessage == null ? '<font color="green">运行中</font>' : `<font color="red">${errorMessage}</font>`;
-	});
-
-	// 重启HTTP服务端按钮
-	view.querySelector('.http #restartHTTPServer').addEventListener('click', () => {
-		ipcRenderer.send('one_bot_api_restart_http_server', configData.port);
-		httpStatus.innerHTML = "正在重启";
-		setTimeout( () => ipcRenderer.invoke(IPCAction.ACTION_HTTP_SERVER_STATUS).then(errorMessage => {
-			httpStatus.innerHTML = errorMessage == null ? '<font color="green">运行中</font>' : `<font color="red">${errorMessage}</font>`;
-		}), 1000);
-	});
-
-    const httpPort = view.querySelector(".http .HTTPPort");
+	const wsPort = view.querySelector(".ws #wsPort");
+	const httpPort = view.querySelector(".http .HTTPPort");
 	const httpReport = view.querySelector(".http .HTTPReport");
 
+	function updateServerStatus(){
+		ipcRenderer.invoke(IPCAction.ACTION_SERVER_STATUS).then(data => {
+			print(data)
+			if(data.http.status) httpStatus.innerHTML = '<font color="green">运行中</font>';
+			else if(data.http.msg) httpStatus.innerHTML = `<font color="red">${data.http.msg}</font>`;
+			else httpStatus.innerHTML = '<font color="gray">未运行</font>';
+			if(data.ws.status) wsStatus.innerHTML = '<font color="green">运行中</font>';
+			else if(data.ws.msg) wsStatus.innerHTML = `<font color="red">${data.ws.msg}</font>`;
+			else wsStatus.innerHTML = '<font color="gray">未运行</font>';
+		});
+	}
+
+	updateServerStatus();
+
+	function restartServerBtn(selector, label, action, data){
+		view.querySelector(selector).addEventListener("click", () => {
+			label.innerHTML = "正在重启";
+			ipcRenderer.send(action, data);
+			setTimeout(updateServerStatus, 1000);
+		});
+	}
+
+	wsPort.value = configData.ws.port;
 	httpPort.value = configData.http.port;
+
 	httpReport.value = configData.http.host;
 
-	// 应用HTTP端口设置
-	view.querySelector(".http #updateHTTPPort").addEventListener("click", () => {
-		configData.http.port = parseInt(httpPort.value);
-		ipcRenderer.send('one_bot_api_set_config', configData);
-		ipcRenderer.send('one_bot_api_restart_http_server', configData.port);
-		alert("设置成功");
-	});
 
-	bingToggle(view, ".http #enableHTTPReport", configData.http.enable, (enable) => {
+	// 重启HTTP服务端按钮
+	restartServerBtn('.http #restartHTTPServer', httpStatus, IPCAction.ACTION_RESTART_HTTP_SERVER, configData.http.port);
+
+	// 重启Ws服务端按钮
+	restartServerBtn('.ws #restartWsServer', wsStatus, IPCAction.ACTION_RESTART_WS_SERVER, configData.ws.port);
+
+	// 启用HTTP上报
+	bindToggle(view, ".http #enableHTTPReport", configData.http.enable, (enable) => {
 		configData.http.enable = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
+	// 应用HTTP端口设置
+	bindButton(view, ".http #updateHTTPPort", () => {
+		configData.http.port = parseInt(httpPort.value);
+		httpStatus.innerHTML = "正在重启";
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		ipcRenderer.send(IPCAction.ACTION_RESTART_HTTP_SERVER, configData.port);
+		setTimeout(updateServerStatus, 1000);
+	});
+
 	// 应用HTTP上报URL设置
-    view.querySelector(".http #updateHTTPReport").addEventListener("click", () => {
+	bindButton(view, ".http #updateHTTPReport", () => {
 		configData.http.host = httpReport.value;
 		ipcRenderer.send('one_bot_api_set_config', configData);
 		alert("设置成功");
-    });
+	});
 
-	view.querySelector(".data #updateGroupList").addEventListener("click", () => {
+	// 启用正向Ws
+	bindToggle(view, ".ws #enableWs", configData.ws.enable, (enable) => {
+		configData.ws.enable = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(enable){
+			wsStatus.innerHTML = "正在启动";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_SERVER, configData.ws.port);
+		}else{
+			wsStatus.innerHTML = "正在关闭";
+			ipcRenderer.send(IPCAction.ACTION_STOP_WS_SERVER);
+		}
+		setTimeout(updateServerStatus, 1000);
+	});
 
+	// 应用ws端口设置
+	bindButton(view, ".ws #applyWsPort", () => {
+		configData.ws.port = parseInt(wsPort.value);
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(configData.ws.enable){
+			wsStatus.innerHTML = "正在重启";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_SERVER, configData.ws.port);
+			setTimeout(updateServerStatus, 1000);
+		}
+	});
+
+	bindButton(view, ".data #updateGroupList", () => {
+		ipcRenderer.invoke(IPCAction.ACTION_GET_GROUPS).then(groups => {
+			view.querySelector('.data #groupList').innerHTML = `共计: ${groups.length} 个群聊`;
+		});
 	});
 
 	// 上报自身消息
-	bingToggle(view, ".setting #reportSelfMsg", configData.setting.reportSelfMsg, (enable) => {
+	bindToggle(view, ".setting #reportSelfMsg", configData.setting.reportSelfMsg, (enable) => {
 		configData.setting.reportSelfMsg = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
 	// 自动接受好友请求
-	bingToggle(view, ".setting #autoAcceptFriendRequest", configData.setting.autoAcceptFriendRequest, (enable) => {
+	bindToggle(view, ".setting #autoAcceptFriendRequest", configData.setting.autoAcceptFriendRequest, (enable) => {
 		configData.setting.autoAcceptFriendRequest = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
-	bingToggle(view, ".misc #disableUpdate", configData.misc.disableUpdate, (enable) => {
+	bindToggle(view, ".misc #disableUpdate", configData.misc.disableUpdate, (enable) => {
 		configData.misc.disableUpdate = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
-	bingToggle(view, ".debug #debugMode", configData.debug.debug, (enable) => {
+	bindToggle(view, ".debug #debugMode", configData.debug.debug, (enable) => {
 		configData.debug.debug = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 
-	bingToggle(view, ".debug #debugIPC", configData.debug.ipc, (enable) => {
+	bindToggle(view, ".debug #debugIPC", configData.debug.ipc, (enable) => {
 		configData.debug.ipc = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 }
 
 
-function bingToggle(view, selector, value, callback){
+function bindButton(view, selector, callback){
+	view.querySelector(selector).addEventListener("click", callback);
+}
+
+function bindToggle(view, selector, value, callback){
 	const toggle = view.querySelector(selector);
 	toggle.toggleAttribute("is-active", value);
 	toggle.addEventListener("click", () => {
 		callback(toggle.toggleAttribute("is-active"));
 	});
 }
+
 
 function print(...args){
 	ipcRenderer.send("one_bot_api_log", args);

@@ -3,12 +3,14 @@
  */
 
 const { Log } = require('../logger');
-const { Data, RuntimeData, Setting } = require('../main/core');
+const { Data, Runtime, Setting, Reporter } = require('../main/core');
 
 const {
-	Text, Face, At, Image, File, Reply,
+	Text,
 	createPeer,
-	OneBot2CqCode
+	OneBot2CqCode,
+	OneBot2QQNT,
+	QQNT2OneBot
 } = require("../common/message");
 
 
@@ -35,14 +37,7 @@ async function sendMessage(postData){
 
     }else{
 		try{
-			for(let message of postData.message){
-				switch(message.type){
-					case 'text': { messages.push(Text.OneBot2QQNT(message)); break; }
-					case 'face': { messages.push(Face.OneBot2QQNT(message)); break; }
-					case 'at': { messages.push(await At.OneBot2QQNT(message, peer.peerUid)); break; }
-					case 'image': { messages.push(await Image.OneBot2QQNT(message)); break; }
-				}
-			}
+			for(let message of postData.message) messages.push(await OneBot2QQNT(message));
 		}catch(e){
 			Log.w(e.toString());
 			Log.w(e.stack);
@@ -59,7 +54,7 @@ async function sendMessage(postData){
 
 	return {
 		data: {
-			message_id: await RuntimeData.sendMessage(peer, messages)
+			message_id: await Runtime.sendMessage(peer, messages)
 		}
 	};
 }
@@ -68,7 +63,7 @@ async function sendMessage(postData){
  * 处理新消息
  */
 async function handleNewMessage(messages){
-	for(let message of messages){
+	for(/** @type Message */ let message  of messages){
 
 		let msgData = {
 			time: parseInt(message?.msgTime || 0),
@@ -97,36 +92,7 @@ async function handleNewMessage(messages){
 			continue;
 		}
 
-		for(let element of message.elements){
-
-			switch(element.elementType){
-				// 文本消息和At消息
-				case 1: {
-					let textElement = element.textElement;
-					if(textElement.atType == 0) msgData.message.push(Text.QQNT2OneBot(element))
-					else msgData.message.push(await At.QQNT2OneBot(element, message.peerUid))
-					break;
-				}
-
-				// 图片消息
-				case 2: msgData.message.push(await Image.QQNT2OneBot(element, message)); break;
-
-				// 文件消息
-				case 3: msgData.message.push(File.QQNT2OneBot(element)); break;
-
-				// 表情消息
-				case 6: msgData.message.push(Face.QQNT2OneBot(element)); break;
-
-				// 回复消息
-				case 7: msgData.message.push(Reply.QQNT2OneBot(element, message)); break;
-
-				default:
-					msgData.message.push({
-						type: "unsupportType",
-						data: element
-					})
-			}
-		}
+		for(let element of message.elements) msgData.message.push(await QQNT2OneBot(element, message));
 
 		let content = msgData.message.map(item => OneBot2CqCode(item)).join('');
 		if(msgData.group_id) Log.i(`收到群 (${msgData.group_id}) 内 (${msgData.user_id}) 的消息：${content}`);
@@ -135,38 +101,11 @@ async function handleNewMessage(messages){
 		Data.pushHistoryMessage(message);
 
 		if(msgData.user_id != msgData.self_id || Setting.setting.setting.reportSelfMsg){
-			postHttpData(msgData);
+			Reporter.reportData(msgData);
 		}
 	}
 }
 
-// ===================
-// HTTP上报模块
-// ===================
-
-/**
- * 上报HTTP消息
- * @param {*} postData
- */
-function postHttpData(postData){
-	if(!Setting.setting.http.enable) return;
-
-	try{
-		fetch(Setting.setting.http.host, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(postData)
-		}).then((res) => {
-
-		}, (err) => {
-			Log.w(`http report fail: ${err}\n${JSON.stringify(postData)}`);
-		});
-	}catch(e){
-		Log.e(e.toString());
-	}
-}
 
 /**
  * 发送通知上报
@@ -176,8 +115,9 @@ function postNoticeData(postData){
 	postData['time'] = 0;
 	postData['self_id'] = Data.selfInfo.uin;
 	postData['post_type'] = "notice";
-	postHttpData(postData);
+	Reporter.reportData(postData);
 }
+
 
 /**
  * 发送通知上报
@@ -187,7 +127,7 @@ function postRequestData(postData){
 	postData['time'] = 0;
 	postData['self_id'] = Data.selfInfo.uin;
 	postData['post_type'] = "request";
-	postHttpData(postData);
+	Reporter.reportData(postData);
 }
 
 
@@ -196,7 +136,6 @@ module.exports = {
 
     handleNewMessage,
 
-	postHttpData,
 	postNoticeData,
 	postRequestData,
 }

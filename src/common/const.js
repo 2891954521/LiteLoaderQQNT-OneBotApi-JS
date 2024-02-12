@@ -35,9 +35,24 @@ module.exports = {
         ACTION_LOAD_MAIN_PAGE: "one_bot_api_load_main_page",
 
         /**
-         * 获取HTTP服务器运行状态
+         * 重启HTTP服务
          */
-        ACTION_HTTP_SERVER_STATUS: 'one_bot_api_http_server_status',
+        ACTION_RESTART_HTTP_SERVER: "one_bot_api_restart_http_server",
+
+        /**
+         * 重启ws服务
+         */
+        ACTION_RESTART_WS_SERVER: "one_bot_api_restart_ws_server",
+
+        /**
+         * 关闭ws服务
+         */
+        ACTION_STOP_WS_SERVER: "one_bot_api_stop_ws_server",
+
+        /**
+         * 获取服务运行状态
+         */
+        ACTION_SERVER_STATUS: 'one_bot_api_server_status',
     },
 
     // 默认设置文件
@@ -47,6 +62,15 @@ module.exports = {
 
             'enable': true,
             "host": "http://127.0.0.1:8080/"
+        },
+
+        "ws": {
+            'enable': false,
+            "port": 5001,
+        },
+
+        "wsReverse": {
+            'enable': false,
         },
 
         "setting": {

@@ -123,13 +123,50 @@ class Data{
      */
     static groupMembers = {};
 
+    /**
+     * @typedef {Object} Message
+     * @property {string} msgId - 消息ID
+     * @property {string} msgSeq - 消息序列号
+     * @property {string} msgTime - 消息时间戳
+     *
+     * @property {number} chatType - 聊天类型
+     *
+     * @property {string} peerUid - 接收者UID
+     * @property {string} senderUid - 发送者UID
+     *
+     * @property {Object} elements - 消息内容
+     *
+     * @property {number} msgType - 消息类型
+     * @property {number} subMsgType - 子消息类型
+     * @property {number} sendType - 发送类型
+     *
+     * @property {string} msgRandom - 消息随机数
+     * @property {string} cntSeq - 计数序列号
+     *
+     * @property {string} fromUid - 来源UID
+     * @property {string} fromAppid - 来源应用ID
+     *
+     * @property {string} msgMeta - 消息元数据
+     * @property {string} sendRemarkName - 发送者备注名
+     * @property {string} sendMemberName - 发送者成员名
+     * @property {string} sendNickName - 发送者昵称
+     *
+     * @property {string} channelName - 频道名
+     * @property {string} channelId - 频道ID
+     *
+     * @property {string} guildId - 公会/群组ID
+     * @property {string} guildCode - 公会/群组代码
+     * @property {string} guildName - 公会/群组名
+     */
 
     static historyMessage = new LimitedHashMap(1000);
 
-    static pushHistoryMessage(msgRecord){
+    static pushHistoryMessage(/** @type Message */ msgRecord){
         this.historyMessage.put(msgRecord.msgId, {
             chatType: msgRecord.chatType,
-            peerUid: msgRecord.peerUid
+            peerUid: msgRecord.peerUid,
+            senderUid: msgRecord.senderUid,
+            msgSeq: msgRecord.msgSeq
         });
     }
 
@@ -247,7 +284,7 @@ class Data{
 
     // 更新群聊成员
     static async __updateGroupMember(groupId, num = 30, retry = true){
-        let members = await RuntimeData.getGroupMembers(groupId, num);
+        let members = await Runtime.getGroupMembers(groupId, num);
 
         if(members && members?.size > 0){
             Log.d(`加载 群(${groupId}) 成员列表，共计${members.size}人`);
@@ -275,7 +312,7 @@ class Setting{
 /**
  * 运行需要的数据
  */
-class RuntimeData{
+class Runtime{
 
     static ipcMain = null;
 
@@ -374,14 +411,54 @@ class RuntimeData{
      * @return {Promise<Map<string, GroupMember>>}
      */
     static async getGroupMembers(groupId, num){
-        let sceneId = await RuntimeData.ntCall("ns-ntApi",  "nodeIKernelGroupService/createMemberListScene",
+        let sceneId = await Runtime.ntCall("ns-ntApi",  "nodeIKernelGroupService/createMemberListScene",
             [{ groupCode: groupId, scene: "groupMemberList_MainWindow"}]
         )
-        let res = await RuntimeData.ntCall("ns-ntApi",  "nodeIKernelGroupService/getNextMemberList",
+        let res = await Runtime.ntCall("ns-ntApi",  "nodeIKernelGroupService/getNextMemberList",
             [{ sceneId: sceneId, num: num}, null]
         );
 
         return res.result.infos;
+    }
+}
+
+/**
+ * 上报模块
+ */
+class Reporter{
+
+    /** @type Function */
+    static webSocketReporter = null;
+
+    /**
+     * 上报event消息
+     */
+    static reportData(data){
+        let str = JSON.stringify(data)
+        if(Setting.setting.http.enable) this.__reportHttp(str);
+
+        if(Setting.setting.ws.enable) this.__reportWs(str);
+
+    }
+
+    static __reportHttp(data){
+        try{
+            fetch(Setting.setting.http.host, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: data
+            }).then(() => {}, (err) => {
+                Log.w(`http report fail: ${err}\n${data}`);
+            });
+        }catch(e){
+            Log.e(e.toString());
+        }
+    }
+
+    static __reportWs(data){
+        if(this.webSocketReporter){
+            this.webSocketReporter(data);
+        }
     }
 }
 
@@ -390,8 +467,10 @@ function log(...args){
     console.log("\x1b[32m[OneBotAPI-Core]\x1b[0m", ...args);
 }
 
+
 module.exports = {
-    Data: Data,
-    Setting: Setting,
-    RuntimeData: RuntimeData
+    Data,
+    Setting,
+    Runtime,
+    Reporter
 };

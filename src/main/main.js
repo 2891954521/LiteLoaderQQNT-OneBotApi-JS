@@ -1,12 +1,15 @@
 const { ipcMain, BrowserWindow } = require("electron");
 
 const { IPCAction, defaultSetting} = require('../common/const');
-const { Data, Setting, RuntimeData } = require('./core');
+const { Data, Setting, Runtime } = require('./core');
 
 const { Log } = require('../logger');
 const utils = require('../utils');
+
+const wsServer = require('../model/wsServer');
 const httpServer = require('../model/httpServer');
-const ActionHandle = require('../model/actionHandle');
+
+const IPCHandle = require('../model/ipcHandle');
 
 function onLoad(plugin) {
 
@@ -30,8 +33,13 @@ function onLoad(plugin) {
     // 获取设置
     ipcMain.handle(IPCAction.ACTION_GET_CONFIG, (event) => Setting.setting);
 
-    // 获取HTTP服务器状态
-    ipcMain.handle(IPCAction.ACTION_HTTP_SERVER_STATUS, (event) => httpServer.getErrorMessage());
+    // 获取服务状态
+    ipcMain.handle(IPCAction.ACTION_SERVER_STATUS, (event) => {
+        return {
+            http: httpServer.getStatus(),
+            ws: wsServer.getStatus()
+        }
+    });
 
 
     ipcMain.handle(IPCAction.ACTION_GET_GROUPS, () => {
@@ -43,15 +51,16 @@ function onLoad(plugin) {
     });
 
     ipcMain.on(IPCAction.ACTION_LOAD_MAIN_PAGE, (event, arg) => {
-        if(RuntimeData.isLoaded()){
+        if(Runtime.isLoaded()){
             Log.w('主页面已加载');
             return false;
         }
 
         const window = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().includes('#/main/message'));
         if(window){
-            RuntimeData.init(ipcMain, window.webContents);
+            Runtime.init(ipcMain, window.webContents);
             httpServer.startHttpServer(Setting.setting.http.port);
+            if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port)
             return true;
         }
 
@@ -65,7 +74,10 @@ function onLoad(plugin) {
         utils.saveSetting(setting);
     });
 
-    ipcMain.on('one_bot_api_restart_http_server', (event, port) => httpServer.startHttpServer(port, true));
+    ipcMain.on(IPCAction.ACTION_RESTART_HTTP_SERVER, (event, port) => httpServer.restartHttpServer(port).then());
+
+    ipcMain.on(IPCAction.ACTION_RESTART_WS_SERVER, (event, port) => wsServer.restartWsServer(port).then());
+    ipcMain.on(IPCAction.ACTION_STOP_WS_SERVER, (event, port) => wsServer.stopWsServer().then());
 }
 
 
@@ -115,14 +127,14 @@ function patchedSend(channel, ...args){
 
     const cmdObject = args?.[1]?.[0];
     if(cmdObject?.cmdName){
-        ActionHandle.onMessageHandle(cmdObject);
+        IPCHandle.onMessageHandle(cmdObject);
     }
 
     if(args[0]?.callbackId){
         const id = args[0].callbackId;
-        if(id in RuntimeData.ntCallCallback){
-            RuntimeData.ntCallCallback[id](args[1]);
-            delete RuntimeData.ntCallCallback[id];
+        if(id in Runtime.ntCallCallback){
+            Runtime.ntCallCallback[id](args[1]);
+            delete Runtime.ntCallCallback[id];
             return true;
         }
     }

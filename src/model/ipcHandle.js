@@ -3,7 +3,7 @@
  */
 
 const { Log } = require("../logger");
-const { Data, RuntimeData, Setting } = require('../main/core');
+const { Data, Runtime, Setting } = require('../main/core');
 const MessageModel = require('../model/messageModel');
 
 
@@ -28,9 +28,9 @@ function onSendMsg(arg){
 	const msgRecord = arg.payload?.msgRecord;
 	if(msgRecord){
 		Data.pushHistoryMessage(msgRecord);
-		if(msgRecord.peerUid in RuntimeData.sendMessageCallback){
-			RuntimeData.sendMessageCallback[msgRecord.peerUid](msgRecord.msgId);
-			delete RuntimeData.sendMessageCallback[msgRecord.peerUid];
+		if(msgRecord.peerUid in Runtime.sendMessageCallback){
+			Runtime.sendMessageCallback[msgRecord.peerUid](msgRecord.msgId);
+			delete Runtime.sendMessageCallback[msgRecord.peerUid];
 		}
 	}
 }
@@ -124,9 +124,9 @@ const handleCmd = {
 		arg?.payload?.data?.buddyReqs
 			?.filter(friendRequest => friendRequest.isUnread && !friendRequest.isDecide)
 			.forEach(friendRequest => {
-				RuntimeData.getUserInfoByUid(friendRequest.friendUid).then(info => {
+				Runtime.getUserInfoByUid(friendRequest.friendUid).then(info => {
 					if(Setting.setting.setting.autoAcceptFriendRequest){
-						RuntimeData.ntCall(
+						Runtime.ntCall(
 							"ns-ntApi",
 							"nodeIKernelBuddyService/approvalFriendRequest",
 							[{
@@ -166,9 +166,9 @@ const handleCmd = {
 	 */
 	"nodeIKernelProfileListener/onProfileDetailInfoChanged": (arg) => {
 		const uid = arg.payload?.info?.uid;
-		if(uid && uid in RuntimeData.getUserInfoCallback){
-			RuntimeData.getUserInfoCallback[uid](arg.payload.info);
-			delete RuntimeData.getUserInfoCallback[uid];
+		if(uid && uid in Runtime.getUserInfoCallback){
+			Runtime.getUserInfoCallback[uid](arg.payload.info);
+			delete Runtime.getUserInfoCallback[uid];
 		}
 	},
 

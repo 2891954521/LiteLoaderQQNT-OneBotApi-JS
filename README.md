@@ -31,9 +31,9 @@
 
 ### 支持的通信方式
 
-* [X] HTTP 上报
-* [ ] 正向 WebSocket
-* [ ] 反向 WebSocket
+- HTTP API 和 上报 
+- 正向 WebSocket 
+- 反向 WebSocket (未完成)
 
 ### 支持的API
 

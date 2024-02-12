@@ -1,5 +1,5 @@
-const { Data, RuntimeData } = require('../main/core');
-const { Log } = require("../logger");
+const {Data, Runtime} = require('../main/core');
+const {Log} = require("../logger");
 const fs = require("fs");
 const utils = require("../utils");
 
@@ -18,7 +18,7 @@ class Message{
 	static QQNT2OneBot(element){
 		return {
 			type: "unsupportType",
-			data: { raw: element }
+			data: {raw: element}
 		}
 	}
 
@@ -47,7 +47,7 @@ class Text extends Message{
 	static QQNT2OneBot(element){
 		return {
 			type: "text",
-			data: { text: element.textElement.content }
+			data: {text: element.textElement.content}
 		}
 	}
 
@@ -106,7 +106,7 @@ class Face extends Message{
 	static QQNT2OneBot(element){
 		return {
 			type: "face",
-			data: { id: element.faceElement.faceIndex }
+			data: {id: element.faceElement.faceIndex}
 		}
 	}
 
@@ -128,17 +128,19 @@ class Face extends Message{
 }
 
 
-class At {
+class At{
 
 	static async QQNT2OneBot(element, group){
 		if(element.textElement.atType == 1){
-			return { type: "at", data: { qq: 'all' } }
+			return {type: "at", data: {qq: 'all'}}
 		}else if(element.textElement.atType == 2){
-			return { type: "at", data: {
-				qq: (await Data.getGroupMemberByUid(group, element.textElement.atNtUid))?.uin || ""
-			} }
+			return {
+				type: "at", data: {
+					qq: (await Data.getGroupMemberByUid(group, element.textElement.atNtUid))?.uin || ""
+				}
+			}
 		}else{
-			return { type: "at", data: { qq: "" } }
+			return {type: "at", data: {qq: ""}}
 		}
 	}
 
@@ -177,13 +179,13 @@ class At {
 }
 
 
-class Image {
+class Image{
 
 	static async QQNT2OneBot(element, message){
 		let picElement = element.picElement;
 
 		if(!fs.existsSync(picElement.sourcePath)){
-			await RuntimeData.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia", [{
+			await Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia", [{
 				getReq: {
 					msgId: message.msgId,
 					elementId: element.elementId,
@@ -243,7 +245,7 @@ class Image {
 		// 	}]
 		// );
 
-		const filePath = await RuntimeData.ntCall("ns-ntApi", "nodeIKernelMsgService/getRichMediaFilePathForGuild", [
+		const filePath = await Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/getRichMediaFilePathForGuild", [
 			{
 				path_info: {
 					md5HexStr: md5,
@@ -267,7 +269,7 @@ class Image {
 
 		const fileSize = fs.statSync(filePath).size;
 
-		const imageSize = await RuntimeData.ntCall("ns-FsApi", "getImageSizeFromPath", [filePath]);
+		const imageSize = await Runtime.ntCall("ns-FsApi", "getImageSizeFromPath", [filePath]);
 
 		if(!imageSize?.width || !imageSize?.height){
 			Log.e(`发送图片失败，无法获取图片大小, path: ${filePath}, name: ${fileName}`);
@@ -317,7 +319,7 @@ class File extends Message{
 		}else{
 			return {
 				type: "file",
-				data: { }
+				data: {}
 			}
 		}
 	}
@@ -334,15 +336,44 @@ class File extends Message{
 class Reply extends Message{
 
 	static QQNT2OneBot(element, message){
-		return {
-			type: "reply",
-			data: {
-				id: message.msgId
+		let replyMsg = message.records?.[0];
+		if(!replyMsg){
+			Log.w(`无法解析回复消息`);
+			return {type: "reply", data: {}}
+		}else{
+			return {
+				type: "reply",
+				data: {
+					id: replyMsg.msgId,
+					seq: replyMsg.msgSeq
+				}
 			}
 		}
 	}
 
-	// static OneBot2QQNT(item){ }
+	static OneBot2QQNT(item){
+		let msg = Data.historyMessage.get(item.data.id);
+		if(!msg){
+			throw `无法找到回复的消息`;
+		}
+		return {
+			elementType: 7,
+			elementId: "",
+			replyElement: {
+				"replayMsgId": item.data.id,
+				"replayMsgSeq": msg.msgSeq,
+				"sourceMsgText": "",
+				"senderUid": msg.senderUid,
+				"senderUidStr": msg.senderUid,
+				"replyMsgClientSeq": "",
+				"replyMsgTime": "",
+				"replyMsgRevokeType": 0,
+				"sourceMsgTextElems": [],
+				"sourceMsgIsIncPic": false,
+				"sourceMsgExpired": false
+			}
+		}
+	}
 
 	static OneBot2CqCode(item){
 		return '[CQ:reply,id=' + item.data.id + ']';
@@ -350,19 +381,102 @@ class Reply extends Message{
 
 }
 
+/**
+ * 窗口抖动
+ */
+class Shake extends Message{
 
+	static QQNT2OneBot(element){
+		return {
+			type: "shake",
+			data: { }
+		}
+	}
 
-function OneBot2CqCode(item){
-	switch(item.type){
-		case 'text': return Text.OneBot2CqCode(item);
-		case 'face': return Face.OneBot2CqCode(item);
-		case 'at': return At.OneBot2CqCode(item);
-		case 'image': return Image.OneBot2CqCode(item);
-		case 'file': return File.OneBot2CqCode(item);
-		case 'reply': return Reply.OneBot2CqCode(item);
+	static OneBot2QQNT(item){
+		return {
+			"elementId": "0",
+			"elementType": 6,
+			"faceElement": {"faceIndex": 0, "faceType": 5, "msgType": 0, "pokeType": 1, "pokeStrength": 0}
+		}
+	}
+
+	static OneBot2CqCode(item){
+		return '[CQ:shake]';
 	}
 }
 
+function OneBot2CqCode(item){
+	switch(item.type){
+		case 'text':
+			return Text.OneBot2CqCode(item);
+		case 'face':
+			return Face.OneBot2CqCode(item);
+		case 'at':
+			return At.OneBot2CqCode(item);
+		case 'image':
+			return Image.OneBot2CqCode(item);
+		case 'file':
+			return File.OneBot2CqCode(item);
+		case 'reply':
+			return Reply.OneBot2CqCode(item);
+		case 'shake':
+			 return Shake.OneBot2CqCode(item);
+	}
+}
+
+async function OneBot2QQNT(item){
+	switch(item.type){
+		case 'text':
+			return Text.OneBot2QQNT(item);
+		case 'face':
+			return Face.OneBot2QQNT(item);
+		case 'at':
+			return await At.OneBot2QQNT(item);
+		case 'image':
+			return await Image.OneBot2QQNT(item);
+		case 'file':
+			return File.OneBot2QQNT(item);
+		case 'reply':
+			return Reply.OneBot2QQNT(item);
+		// case 'shake':
+		// 	return Shake.OneBot2QQNT(item);
+		default:
+			throw '无法解析的消息类型: ' + item.type;
+	}
+}
+
+async function QQNT2OneBot(element, message){
+	switch(element.elementType){
+		// 文本消息和At消息
+		case 1: {
+			let textElement = element.textElement;
+			if(textElement.atType == 0) return Text.QQNT2OneBot(element);
+			else return await At.QQNT2OneBot(element, message.peerUid);
+		}
+
+		// 图片消息
+		case 2: return await Image.QQNT2OneBot(element, message);
+
+		// 文件消息
+		case 3: return File.QQNT2OneBot(element);
+
+		// 表情消息
+		case 6:
+			let faceElement = element.faceElement;
+			if(faceElement.faceType == 5) return Shake.QQNT2OneBot(element);
+			return Face.QQNT2OneBot(element);
+
+		// 回复消息
+		case 7: return Reply.QQNT2OneBot(element, message);
+
+		default:
+			return {
+				type: "unsupportType",
+				data: element
+			}
+	}
+}
 
 /**
  * 创建发送消息的对象
@@ -420,4 +534,6 @@ module.exports = {
 	createPeer,
 
 	OneBot2CqCode,
+	OneBot2QQNT,
+	QQNT2OneBot
 }

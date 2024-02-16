@@ -91,6 +91,22 @@ const handleCmd = {
 	"nodeIKernelGroupListener/onGroupListUpdate": onGroupListUpdate,
 
 	/**
+	 * 撤回消息, msgType = 5, subMsgType = 4
+	 */
+	"nodeIKernelMsgListener/onMsgInfoListUpdate": (arg) => {
+		let msgList = arg?.payload?.msgList;
+		if(!msgList) return;
+		for(let msg of msgList){
+			for(let element of msg.elements){
+				if(element.elementType == 8 && element.grayTipElement.subElementType == 1){
+					MessageModel.recallMessage(msg).then();
+					break;
+				}
+			}
+		}
+	},
+
+	/**
 	 * 更新好友请求列表
 	 *
 	 * @typedef friendRequest

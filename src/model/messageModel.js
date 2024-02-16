@@ -15,6 +15,30 @@ const {
 
 
 /**
+ * 从message里提取信息
+ */
+async function parseMessage(message){
+	let msgData = {
+		time: parseInt(message?.msgTime || 0),
+		message_id: message.msgId
+	}
+
+	if(message.chatType === 1){
+		msgData.user_id = Data.getInfoByUid(message.senderUid)?.uin;
+
+	}else if(message.chatType === 2){
+		msgData.group_id = message.peerUid;
+		msgData.user_id = Data.userMap[message.senderUid] || (await Data.getGroupMemberByUid(message.peerUid, message.senderUid))?.uin;
+	}
+
+	if(!msgData.user_id){
+		Log.w(`无法获取发送者QQ号: uid: ${message.senderUid}`);
+	}
+
+	return msgData;
+}
+
+/**
  * 发送消息
  * @param postData
  */
@@ -64,32 +88,23 @@ async function sendMessage(postData){
  */
 async function handleNewMessage(messages){
 	for(/** @type Message */ let message  of messages){
-
-		let msgData = {
-			time: parseInt(message?.msgTime || 0),
-			self_id: Data.selfInfo.uin,
-			post_type: "message",
-			message_id: message.msgId,
-			message: []
-		}
-
-		if(message.chatType === 1){
-			msgData["message_type"] = "private";
-			msgData["sub_type"] = "friend";
-
-			msgData.user_id = Data.getInfoByUid(message.senderUid)?.uin;
-
-		}else if(message.chatType === 2){
-			msgData["message_type"] = "group";
-			msgData["sub_type"] = "normal";
-
-			msgData.group_id = message.peerUid;
-			msgData.user_id = Data.userMap[message.senderUid] || (await Data.getGroupMemberByUid(message.peerUid, message.senderUid))?.uin;
-		}
+		let msgData = await parseMessage(message);
 
 		if(!msgData.user_id){
 			Log.w(`无法获取发送者QQ号: uid: ${message.senderUid}`);
 			continue;
+		}
+
+		msgData.self_id = Data.selfInfo.uin;
+		msgData.post_type = "message";
+		msgData.message = [];
+
+		if(message.chatType == 1){
+			msgData.message_type = "private";
+			msgData.sub_type = "friend";
+		}else if(message.chatType == 2){
+			msgData.message_type = "group";
+			msgData.sub_type = "normal";
 		}
 
 		for(let element of message.elements) msgData.message.push(await QQNT2OneBot(element, message));
@@ -106,13 +121,35 @@ async function handleNewMessage(messages){
 	}
 }
 
+async function recallMessage(message){
+	let msgData = await parseMessage(message);
+	msgData.notice_type = (message.chatType == 1 ? "friend_recall" : (message.chatType == 2 ? "group_recall" : "unknown"));
+
+	if(msgData.group_id){
+		for(let element of message.elements){
+			if(element.elementType == 8 && element.grayTipElement.subElementType == 1){
+				let operatorUid = element.grayTipElement.revokeElement.operatorUid;
+				msgData.operator_id = Data.userMap[operatorUid] || (await Data.getGroupMemberByUid(msgData.group_id, operatorUid))?.uin;
+				break;
+			}
+		}
+	}else{
+		msgData.operator_id = msgData.user_id;
+	}
+
+	if(msgData.group_id) Log.i(`群 (${msgData.group_id}) 内 (${msgData.user_id}) 撤回了一条消息`);
+	else Log.i(`好友 (${msgData.user_id}) 撤回了一条消息`);
+
+	postNoticeData(msgData);
+}
+
 
 /**
  * 发送通知上报
  * @param {*} postData
  */
 function postNoticeData(postData){
-	postData['time'] = 0;
+	if(!postData.time) postData.time = 0;
 	postData['self_id'] = Data.selfInfo.uin;
 	postData['post_type'] = "notice";
 	Reporter.reportData(postData);
@@ -135,6 +172,7 @@ module.exports = {
     sendMessage,
 
     handleNewMessage,
+	recallMessage,
 
 	postNoticeData,
 	postRequestData,

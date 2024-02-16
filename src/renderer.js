@@ -17,19 +17,26 @@ async function onSettingWindowCreated(view){
 	const wsStatus = view.querySelector('.ws #wsServerStatus');
 	const httpStatus = view.querySelector('.http #httpServerStatus');
 
+	const wsReverse = view.querySelector(".ws #wsReverseStatus");
+	const wsReverseApi = view.querySelector(".ws #wsReverseApiStatus");
+	const wsReverseEvent = view.querySelector(".ws #wsReverseEventStatus");
+
 	const wsPort = view.querySelector(".ws #wsPort");
 	const httpPort = view.querySelector(".http .HTTPPort");
 	const httpReport = view.querySelector(".http .HTTPReport");
 
+	const wsReverseUrl = view.querySelector(".ws #wsReverseUrl");
+	const wsReverseApiUrl = view.querySelector(".ws #wsReverseApiUrl");
+	const wsReverseEventUrl = view.querySelector(".ws #wsReverseEventUrl");
+
 	function updateServerStatus(){
 		ipcRenderer.invoke(IPCAction.ACTION_SERVER_STATUS).then(data => {
-			print(data)
-			if(data.http.status) httpStatus.innerHTML = '<font color="green">运行中</font>';
-			else if(data.http.msg) httpStatus.innerHTML = `<font color="red">${data.http.msg}</font>`;
-			else httpStatus.innerHTML = '<font color="gray">未运行</font>';
-			if(data.ws.status) wsStatus.innerHTML = '<font color="green">运行中</font>';
-			else if(data.ws.msg) wsStatus.innerHTML = `<font color="red">${data.ws.msg}</font>`;
-			else wsStatus.innerHTML = '<font color="gray">未运行</font>';
+			updateStatus(httpStatus, data.http);
+			updateStatus(wsStatus, data.ws);
+
+			updateStatus(wsReverse, data.wsReverse.wss);
+			updateStatus(wsReverseApi, data.wsReverse.api);
+			updateStatus(wsReverseEvent, data.wsReverse.event);
 		});
 	}
 
@@ -47,6 +54,10 @@ async function onSettingWindowCreated(view){
 	httpPort.value = configData.http.port;
 
 	httpReport.value = configData.http.host;
+
+	wsReverseUrl.value = configData.wsReverse.url;
+	wsReverseApiUrl.value = configData.wsReverse.apiUrl;
+	wsReverseEventUrl.value = configData.wsReverse.eventUrl;
 
 
 	// 重启HTTP服务端按钮
@@ -102,6 +113,57 @@ async function onSettingWindowCreated(view){
 		}
 	});
 
+	// 启用反向Ws
+	bindToggle(view, ".ws #enableWsReverse", configData.wsReverse.enable, (enable) => {
+		configData.wsReverse.enable = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(enable){
+			wsReverse.innerHTML = "正在重启";
+			wsReverseApi.innerHTML = "正在重启";
+			wsReverseEvent.innerHTML = "正在重启";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, configData.wsReverse);
+		}else{
+			wsReverse.innerHTML = "正在关闭";
+			wsReverseApi.innerHTML = "正在关闭";
+			wsReverseEvent.innerHTML = "正在关闭";
+			ipcRenderer.send(IPCAction.ACTION_STOP_WS_REVERSE_SERVER);
+		}
+		setTimeout(updateServerStatus, 3000);
+	});
+
+	// 应用ws url
+	bindButton(view, ".ws #applyWsReverseUrl", () => {
+		configData.wsReverse.url = wsReverseUrl.value;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(configData.wsReverse.enable){
+			wsReverse.innerHTML = "正在重启";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, configData.wsReverse);
+			setTimeout(updateServerStatus, 3000);
+		}
+	});
+
+	// 应用ws api url
+	bindButton(view, ".ws #applyWsReverseApiUrl", () => {
+		configData.wsReverse.apiUrl = wsReverseApiUrl.value;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(configData.wsReverse.enable){
+			wsReverseApi.innerHTML = "正在重启";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, configData.wsReverse);
+			setTimeout(updateServerStatus, 3000);
+		}
+	});
+
+	// 应用ws event url
+	bindButton(view, ".ws #applyWsReverseEventUrl", () => {
+		configData.wsReverse.eventUrl = wsReverseEventUrl.value;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+		if(configData.wsReverse.enable){
+			wsReverseEvent.innerHTML = "正在重启";
+			ipcRenderer.send(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, configData.wsReverse);
+			setTimeout(updateServerStatus, 1000);
+		}
+	});
+
 	bindButton(view, ".data #updateGroupList", () => {
 		ipcRenderer.invoke(IPCAction.ACTION_GET_GROUPS).then(groups => {
 			view.querySelector('.data #groupList').innerHTML = `共计: ${groups.length} 个群聊`;
@@ -148,6 +210,15 @@ function bindToggle(view, selector, value, callback){
 		callback(toggle.toggleAttribute("is-active"));
 	});
 }
+
+function updateStatus(view, data){
+	if(data.status) view.innerHTML = '<font color="green">运行中</font>';
+	else if(data.msg) {
+		view.title = data.msg;
+		view.innerHTML = `<font color="red">${data.msg}</font>`;
+	}else view.innerHTML = '<font color="gray">未运行</font>';
+}
+
 
 
 function print(...args){

@@ -3,7 +3,7 @@ const http = require('http');
 const WebSocketServer = require('../lib/websocket-server');
 const { Log } = require("../logger");
 const { Reporter } = require('../main/core');
-const { oneBot11, oneBot11API} = require('./oneBot11')
+const { oneBot11API} = require('./oneBot11')
 
 const WsStatus = {
 	CONNECTING: 0,

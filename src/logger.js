@@ -35,28 +35,28 @@ class Log {
 	static d(...args){
 		if(this.isDebug){
 			console.log("\x1b[37m[OneBotAPI-Debug]\x1b[0m", ...args);
-			this.fileStream.write("[Debug]" + args.join('') + '\n');
+			this.fileStream?.write("[Debug]" + args.join('') + '\n');
 		}
 	}
 
 	static i(...args){
 		console.log("\x1b[32m[OneBotAPI-Info]\x1b[0m", ...args);
 		if(this.isDebug){
-			this.fileStream.write("[Info]" + args.join('') + '\n');
+			this.fileStream?.write("[Info]" + args.join('') + '\n');
 		}
 	}
 
 	static w(...args){
 		console.log("\x1b[33m[OneBotAPI-Warn]\x1b[0m", ...args);
 		if(this.isDebug){
-			this.fileStream.write("[Warn]" + args.join('') + '\n');
+			this.fileStream?.write("[Warn]" + args.join('') + '\n');
 		}
 	}
 
 	static e(...args){
 		console.log("\x1b[31m[OneBotAPI-Error]\x1b[0m", ...args);
 		if(this.isDebug){
-			this.fileStream.write("[Error]" + args.join('') + '\n');
+			this.fileStream?.write("[Error]" + args.join('') + '\n');
 		}
 	}
 }

@@ -7,6 +7,7 @@ const { Log } = require('../logger');
 const utils = require('../utils');
 
 const wsServer = require('../model/wsServer');
+const wsReverse = require('../model/wsReverseServer');
 const httpServer = require('../model/httpServer');
 
 const IPCHandle = require('../model/ipcHandle');
@@ -37,7 +38,8 @@ function onLoad(plugin) {
     ipcMain.handle(IPCAction.ACTION_SERVER_STATUS, (event) => {
         return {
             http: httpServer.getStatus(),
-            ws: wsServer.getStatus()
+            ws: wsServer.getStatus(),
+            wsReverse: wsReverse.getStatus()
         }
     });
 
@@ -61,6 +63,7 @@ function onLoad(plugin) {
             Runtime.init(ipcMain, window.webContents);
             httpServer.startHttpServer(Setting.setting.http.port);
             if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port)
+            if(Setting.setting.wsReverse.enable) wsReverse.startWsClient(Setting.setting.wsReverse)
             return true;
         }
 
@@ -77,7 +80,10 @@ function onLoad(plugin) {
     ipcMain.on(IPCAction.ACTION_RESTART_HTTP_SERVER, (event, port) => httpServer.restartHttpServer(port).then());
 
     ipcMain.on(IPCAction.ACTION_RESTART_WS_SERVER, (event, port) => wsServer.restartWsServer(port).then());
-    ipcMain.on(IPCAction.ACTION_STOP_WS_SERVER, (event, port) => wsServer.stopWsServer().then());
+    ipcMain.on(IPCAction.ACTION_STOP_WS_SERVER, (event) => wsServer.stopWsServer().then());
+
+    ipcMain.on(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, (event, params) => wsReverse.restartWsClient(params));
+    ipcMain.on(IPCAction.ACTION_STOP_WS_REVERSE_SERVER, (event) => wsReverse.stopWsClient());
 }
 
 

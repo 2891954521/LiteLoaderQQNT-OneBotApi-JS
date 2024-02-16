@@ -50,6 +50,16 @@ module.exports = {
         ACTION_STOP_WS_SERVER: "one_bot_api_stop_ws_server",
 
         /**
+         * 重启ws reverse服务
+         */
+        ACTION_RESTART_WS_REVERSE_SERVER: "one_bot_api_restart_ws_reverse_server",
+
+        /**
+         * 关闭ws reverse服务
+         */
+        ACTION_STOP_WS_REVERSE_SERVER: "one_bot_api_stop_ws_reverse_server",
+
+        /**
          * 获取服务运行状态
          */
         ACTION_SERVER_STATUS: 'one_bot_api_server_status',
@@ -66,11 +76,17 @@ module.exports = {
 
         "ws": {
             'enable': false,
+            'host': '0.0.0.0',
             "port": 5001,
         },
 
         "wsReverse": {
-            'enable': false,
+            enable: false,
+            url: '',
+            apiUrl: '',
+            eventUrl: '',
+            useUniversalClient: false,
+            reconnectInterval: 3000
         },
 
         "setting": {

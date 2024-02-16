@@ -27,13 +27,13 @@
 - HTTP接口不支持并发，请不要同时进行多个请求
 
 ## API文档
-详见 [OneBot11](https://11.onebot.dev/)，所有已实现的API均以OneBot11文档为准
+详见 [OneBot11](https://github.com/botuniverse/onebot-11)，所有已实现的API均以OneBot11文档为准
 
 ### 支持的通信方式
 
 - HTTP API 和 上报 
 - 正向 WebSocket 
-- 反向 WebSocket (未完成)
+- 反向 WebSocket
 
 ### 支持的API
 

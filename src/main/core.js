@@ -430,15 +430,20 @@ class Reporter{
     /** @type Function */
     static webSocketReporter = null;
 
+    static webSocketReverseReporter = null;
+
     /**
      * 上报event消息
      */
     static reportData(data){
-        let str = JSON.stringify(data)
+        if(!Runtime.isLoaded()) return;
+
+        let str = JSON.stringify(data);
+
         if(Setting.setting.http.enable) this.__reportHttp(str);
 
         if(Setting.setting.ws.enable) this.__reportWs(str);
-
+        if(Setting.setting.wsReverse.enable) this.__reportWsReverse(str);
     }
 
     static __reportHttp(data){
@@ -456,9 +461,11 @@ class Reporter{
     }
 
     static __reportWs(data){
-        if(this.webSocketReporter){
-            this.webSocketReporter(data);
-        }
+        if(this.webSocketReporter) this.webSocketReporter(data);
+    }
+
+    static  __reportWsReverse(data){
+        if(this.webSocketReverseReporter) this.webSocketReverseReporter(data);
     }
 }
 

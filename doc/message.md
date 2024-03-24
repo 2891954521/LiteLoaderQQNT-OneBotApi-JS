@@ -11,6 +11,7 @@
     "sub_type": "friend",       // 消息子类型
     "user_id": "",              // 消息发送者
     "group_id": "",             // 收到消息的群（只有群消息才有这个字段）
+    "font": 0,
     "message": [
         // 消息内容，具体请参考下文
     ]
@@ -36,7 +37,8 @@
 | 推荐好友    |    |
 | 推荐群     |    |
 | 回复      | ✔  | ✔  | 只能回复Bot框架启动后收到的消息     |
-| 合并转发    |    |
+| 合并转发    | ✔  |
+| JSON 消息 | ✔  |
 | XML 消息  |    |
 
 
@@ -67,7 +69,9 @@
 {
     "type": "image",
     "data": {
-        "file": "path" // 图片文件本地路径
+        "file": "path",         // 图片文件本地路径
+        "url": "https://xxx",   // 图片URL
+        "md5": "3F7D797BE1AF0A" // 图片md5 (大写)
     }
 }
 ```
@@ -88,6 +92,26 @@
     "type": "reply",
     "data": {
         "id": "123456" // 回复的消息的msgId
+    }
+}
+```
+
+### 转发消息
+```json lines
+{
+    "type": "forward",
+    "data": {
+        "id": "123456" // 消息的msgId
+    }
+}
+```
+
+### Json消息
+```json lines
+{
+    "type": "json",
+    "data": {
+        "data": "{\"app\":\"com.tencent.miniapp_01\" ... }" // Json消息内容（字符串）
     }
 }
 ```

@@ -124,7 +124,7 @@ class Data{
     static groupMembers = {};
 
     /**
-     * @typedef {Object} Message
+     * @typedef {Object} QQNTMessage
      * @property {string} msgId - 消息ID
      * @property {string} msgSeq - 消息序列号
      * @property {string} msgTime - 消息时间戳
@@ -161,12 +161,13 @@ class Data{
 
     static historyMessage = new LimitedHashMap(1000);
 
-    static pushHistoryMessage(/** @type Message */ msgRecord){
-        this.historyMessage.put(msgRecord.msgId, {
-            chatType: msgRecord.chatType,
-            peerUid: msgRecord.peerUid,
-            senderUid: msgRecord.senderUid,
-            msgSeq: msgRecord.msgSeq
+    static pushHistoryMessage(/** @type QQNTMessage */ qqNtMsg, oneBotMsg){
+        this.historyMessage.put(qqNtMsg.msgId, {
+            chatType: qqNtMsg.chatType,
+            peerUid: qqNtMsg.peerUid,
+            senderUid: qqNtMsg.senderUid,
+            msgSeq: qqNtMsg.msgSeq,
+            oneBotMsg: oneBotMsg
         });
     }
 
@@ -232,10 +233,11 @@ class Data{
      * 根据 QQ号 获取群成员信息
      * @param groupId 群号
      * @param qq {string}
+     * @param force 是否强制更新
      * @return {GroupMember | null}
      */
-    static async getGroupMemberByQQ(groupId, qq){
-        let members = await this.getGroupMemberList(groupId);
+    static async getGroupMemberByQQ(groupId, qq, force = false){
+        let members = await this.getGroupMemberList(groupId, force);
         let member = members.find(m => m.uin == qq);
         return member || (Log.w(`getGroupMemberByQQ: 用户 QQ(${qq}) 在 群(${groupId}) 内不存在`), null);
     }
@@ -387,14 +389,16 @@ class Runtime{
     }
 
     /**
-     * 发送消息，并返还msgId
+     * 发送消息
      * @param peer
      * @param messages
-     * @return {Promise<string>}
+     * @return {Promise<QQNTMessage>}
      */
     static sendMessage(peer, messages){
         return new Promise((resolve) => {
-            this.sendMessageCallback[peer.peerUid] = resolve;
+            this.sendMessageCallback[peer.peerUid] = (qqNtMsg) => {
+                resolve(qqNtMsg)
+            };
             this.ntCall("ns-ntApi",  "nodeIKernelMsgService/sendMsg", [{
                 msgId: "0",
                 peer: peer,
@@ -420,12 +424,26 @@ class Runtime{
 
         return res.result.infos;
     }
+
+    /**
+     * 获取合并转发的消息
+     */
+    static async getMultiMessages(peer, rootId, msgId){
+        let js = await Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/getMultiMsg", [{
+            peer: peer,
+            rootMsgId: rootId,
+            parentMsgId: msgId ? msgId : rootId
+        }, null])
+        return js.msgList;
+    }
 }
 
 /**
  * 上报模块
  */
 class Reporter{
+
+    static httpReporter = null;
 
     /** @type Function */
     static webSocketReporter = null;
@@ -438,34 +456,24 @@ class Reporter{
     static reportData(data){
         if(!Runtime.isLoaded()) return;
 
+        if(Setting.setting.http.enable) this.__reportHttp(data);
+
         let str = JSON.stringify(data);
-
-        if(Setting.setting.http.enable) this.__reportHttp(str);
-
         if(Setting.setting.ws.enable) this.__reportWs(str);
         if(Setting.setting.wsReverse.enable) this.__reportWsReverse(str);
+
     }
 
     static __reportHttp(data){
-        try{
-            fetch(Setting.setting.http.host, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: data
-            }).then(() => {}, (err) => {
-                Log.w(`http report fail: ${err}\n${data}`);
-            });
-        }catch(e){
-            Log.e(e.toString());
-        }
+        if(this.httpReporter) this.httpReporter(data);
     }
 
-    static __reportWs(data){
-        if(this.webSocketReporter) this.webSocketReporter(data);
+    static __reportWs(str){
+        if(this.webSocketReporter) this.webSocketReporter(str);
     }
 
-    static  __reportWsReverse(data){
-        if(this.webSocketReverseReporter) this.webSocketReverseReporter(data);
+    static  __reportWsReverse(str){
+        if(this.webSocketReverseReporter) this.webSocketReverseReporter(str);
     }
 }
 

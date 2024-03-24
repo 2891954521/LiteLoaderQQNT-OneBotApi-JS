@@ -1,6 +1,7 @@
 const MessageModel = require("./messageModel");
 const { Runtime, Data } = require("../main/core");
-const { createPeer } = require("../common/message");
+const { createPeer, QQNT2OneBot} = require("../common/message");
+const {Log} = require("../logger");
 
 const oneBot11API = {
 
@@ -169,6 +170,9 @@ const oneBot11API = {
 		return { status: 'ok', retcode: 0, }
 	},
 
+	/**
+	 * 撤回消息
+	 */
 	'delete_msg': async(postData) => {
 		let peer = null;
 		let msg = Data.historyMessage.get(postData.message_id);
@@ -209,6 +213,83 @@ const oneBot11API = {
 		}
 	},
 
+	/**
+	 * 获取消息
+	 */
+	'get_msg': async(postData) => {
+		if(!postData.message_id){
+			return { status: 'failed', "retcode": 400, msg: "Must provide 'message_id'." }
+		}
+
+		let oneBotMsg = Data.historyMessage.get(postData.message_id)?.oneBotMsg;
+		if(oneBotMsg){
+			return {
+				status: 'ok',
+				retcode: 0,
+				data: {
+					message: oneBotMsg.message
+				}
+			}
+		}else{
+			return {
+				status: 'failed',
+				retcode: 404,
+				msg: `消息不存在, Can't find message with id: ${postData.message_id}`,
+			}
+		}
+	},
+
+	/**
+	 * 获取合并转发的消息
+	 */
+	'get_forward_msg': async(postData) => {
+		if(!postData.id){
+			return { status: 'failed', "retcode": 400, msg: "Must provide 'id' (msgId)." }
+		}
+
+		let peer = null;
+		let msg = Data.historyMessage.get(postData.id);
+		if(msg){
+			peer = {
+				chatType: msg.chatType,
+				peerUid: msg.peerUid,
+				guildId: ''
+			}
+		}else{
+			peer = createPeer(postData.group_id, postData.user_id);
+			if(!peer){
+				return {
+					status: 'failed',
+					retcode: 400,
+					msg: "消息不存在"
+				}
+			}
+		}
+
+		let forwardMsg = [];
+		let messages = await Runtime.getMultiMessages(peer, postData.id);
+		for(let message of messages){
+			let content = [];
+			for(let element of message.elements){
+				content.push(await QQNT2OneBot(element, message));
+			}
+			forwardMsg.push({
+				"type": "node",
+				"data": {
+					"user_id": message.senderUid,
+					"content": content
+				}
+			})
+		}
+
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: {
+				'message': forwardMsg
+			}
+		};
+	},
 
 	/**
 	 * 获取登录号信息
@@ -324,7 +405,9 @@ const oneBot11API = {
 	 * {
 	 *   code: 200,
 	 *   msg: "OK",
-	 *   data: []
+	 *   data: [
+	 *
+	 *   ]
 	 */
 	'get_group_member_list': async (postData) => {
 		let members = await Data.getGroupMemberList(postData.group_id, true);
@@ -339,6 +422,29 @@ const oneBot11API = {
 				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
 			}})
 		};
+	},
+
+	/**
+	 * 获取群成员信息
+	 * {
+	 * 	group_id: 123456,
+	 * 	user_id: 123456,
+	 * 	no_cache: false
+	 * }
+	 */
+	'get_group_member_info': async (postData) => {
+		let member = await Data.getGroupMemberByQQ(postData.group_id,  postData.user_id, (postData?.no_cache || false));
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: {
+				group_id: postData.group_id,// 群号
+				user_id: member.uin,        // QQ 号
+				nickname: member.nick,      // 昵称
+				card: member.cardName,      // 群名片／备注
+				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
+			}
+		}
 	},
 
 	/**
@@ -374,7 +480,6 @@ const oneBot11API = {
 	},
 
 	// get_msg 获取消息
-	// get_forward_msg 获取合并转发消息
 	// send_like 发送好友赞
 	// set_group_kick 群组踢人
 	// set_group_ban 群组单人禁言
@@ -388,7 +493,6 @@ const oneBot11API = {
 	// set_group_special_title 设置群组专属头衔
 	// set_group_add_request 处理加群请求／邀请
 	// get_stranger_info 获取陌生人信息
-	// get_group_member_info 获取群成员信息
 	// get_group_honor_info 获取群荣誉信息
 	// get_record 获取语音
 	// get_image 获取图片

@@ -25,11 +25,11 @@ function onRecvMsg(arg){
  * 监听自己发送的消息，用于获取msgId
  */
 function onSendMsg(arg){
+	/** @type QQNTMessage */
 	const msgRecord = arg.payload?.msgRecord;
 	if(msgRecord){
-		Data.pushHistoryMessage(msgRecord);
 		if(msgRecord.peerUid in Runtime.sendMessageCallback){
-			Runtime.sendMessageCallback[msgRecord.peerUid](msgRecord.msgId);
+			Runtime.sendMessageCallback[msgRecord.peerUid](msgRecord);
 			delete Runtime.sendMessageCallback[msgRecord.peerUid];
 		}
 	}

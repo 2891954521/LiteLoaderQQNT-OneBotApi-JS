@@ -202,7 +202,10 @@ class Image{
 		return {
 			type: "image",
 			data: {
-				file: picElement.sourcePath.startsWith("/") ? "file://" : "file:///" + picElement.sourcePath
+				file: picElement.sourcePath.startsWith("/") ? "file://" : "file:///" + picElement.sourcePath,
+				url: 'https://c2cpicdw.qpic.cn' + picElement.originImageUrl,
+				// message.chatType == 2 ? `https://c2cpicdw.qpic.cn/offpic_new/0//0-${message.peerUid}-${picElement.md5HexStr.toUpperCase()}/0` : "",
+				md5: picElement.md5HexStr.toUpperCase()
 			}
 		}
 	}
@@ -216,7 +219,7 @@ class Image{
 
 		}else if(url.startsWith("http://") || url.startsWith("https://")){
 			Log.e('暂不支持发送非本地图片');
-			return Text.OneBot2QQNTFast("暂不支持发送非本地图片");
+			return Text.OneBot2QQNTFast("[图片]");
 
 		}else{
 			file = url;
@@ -298,7 +301,7 @@ class Image{
 	}
 
 	static OneBot2CqCode(item){
-		return '[CQ:image,file=' + item.data.file + ']';
+		return '[CQ:image,md5=' + item.data.md5 + ']';
 	}
 }
 
@@ -381,6 +384,7 @@ class Reply extends Message{
 
 }
 
+
 /**
  * 窗口抖动
  */
@@ -406,6 +410,54 @@ class Shake extends Message{
 	}
 }
 
+/**
+ * Json消息
+ */
+class Ark extends Message{
+
+	static QQNT2OneBot(element){
+		return {
+			type: "json",
+			data: {
+				data: element.arkElement.bytesData
+			}
+		}
+	}
+
+	static OneBot2QQNT(item){
+		return Text.OneBot2QQNTFast("[Json消息]")
+	}
+
+	static OneBot2CqCode(item){
+		return '[CQ:json,data=' + item.data.data + ']';
+	}
+}
+
+/**
+ * 转发消息
+ */
+class Forward {
+
+	static QQNT2OneBot(element, message){
+		return {
+			type: "forward",
+			data: {
+				// id: element.multiForwardMsgElement.resId
+				id: message.msgId
+			}
+		}
+	}
+
+	static OneBot2QQNT(item){
+		return Text.OneBot2QQNTFast("[聊天记录]")
+	}
+
+	static OneBot2CqCode(item){
+		return '[CQ:forward,id=' + item.data.id + ']';
+	}
+}
+
+
 function OneBot2CqCode(item){
 	switch(item.type){
 		case 'text':
@@ -421,7 +473,13 @@ function OneBot2CqCode(item){
 		case 'reply':
 			return Reply.OneBot2CqCode(item);
 		case 'shake':
-			 return Shake.OneBot2CqCode(item);
+			return Shake.OneBot2CqCode(item);
+		case 'json':
+			return Ark.OneBot2CqCode(item);
+		case 'forward':
+			return Forward.OneBot2CqCode(item);
+		case 'unsupportType':
+			return `[CQ:unsupport,raw=${JSON.stringify(item.data)}]`
 	}
 }
 
@@ -469,6 +527,12 @@ async function QQNT2OneBot(element, message){
 
 		// 回复消息
 		case 7: return Reply.QQNT2OneBot(element, message);
+
+		// Json消息
+		case 10: return Ark.QQNT2OneBot(element);
+
+		// 转发消息
+		case 16: return Forward.QQNT2OneBot(element, message)
 
 		default:
 			return {

@@ -153,7 +153,7 @@
                 <setting-item>
                     <div>
                         <setting-text>禁用更新</setting-text>
-                        <setting-text data-type="secondary">禁用更新提示</setting-text>
+                        <setting-text data-type="secondary">禁用QQ更新提示</setting-text>
                     </div>
                     <setting-switch id="disableUpdate"></setting-switch>
                 </setting-item>
@@ -163,7 +163,7 @@
 
     <setting-section data-title="调试" class="debug">
         <setting-panel>
-            <setting-list data-direction="column">
+            <setting-list is-collapsible data-direction="column"  data-title="调试模式">
 
                 <setting-item>
                     <div>
@@ -183,6 +183,16 @@
 
             </setting-list>
         </setting-panel>
+
+        <setting-panel>
+            <setting-list is-collapsible data-direction="column" data-title="运行日志">
+                <setting-item>
+                    <textarea id="log" readonly style="width: 100%; height: 300px; min-height: 100px; resize: vertical;">
+                    </textarea>
+                </setting-item>
+            </setting-list>
+        </setting-panel>
+
     </setting-section>
 
     <setting-section data-title="关于" class="about">
@@ -212,6 +222,9 @@
 <style>
     @media (prefers-color-scheme: dark) {
         .OneBotApi input {
+            color: white;
+        }
+        .OneBotApi textarea {
             color: white;
         }
     }

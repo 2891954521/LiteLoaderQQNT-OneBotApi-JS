@@ -6,7 +6,6 @@ const { Log } = require('../logger');
 const { Data, Runtime, Setting, Reporter } = require('../main/core');
 
 const {
-	Text,
 	createPeer,
 	OneBot2CqCode,
 	OneBot2QQNT,
@@ -45,78 +44,91 @@ async function parseMessage(message){
 async function sendMessage(postData){
     let peer = createPeer(postData.group_id, postData.user_id);
 
-	if(!peer) return {
-		msg: postData.group_id ? `找不到群 (${postData.group_id})` : `找不到好友 (${postData.user_id})`
-	};
+	if(!peer){
+		return { msg: postData.group_id ? `找不到群 (${postData.group_id})` : `找不到好友 (${postData.user_id})`}
+	}
+
+	let oneBotMsg = {
+		self_id: Data.selfInfo.uin,
+		user_id: Data.selfInfo.uin,
+		post_type: "message",
+		font: 0,
+		// sender
+	}
 
     let messages = [];
 
     if(postData.message.constructor === String){
-        messages.push(Text.OneBot2QQNTFast(postData.message));
-
-		if(Setting.setting.debug.debug){
-			if(postData.group_id) Log.i(`发送群 (${postData.group_id}) 消息：${postData.message}`);
-			else Log.i(`发送好友 (${postData.user_id}) 消息：${postData.message}`);
-		}
-
+		oneBotMsg.message = [{ type: "text", data: {text: postData.message} }]
     }else{
-		try{
-			for(let message of postData.message) messages.push(await OneBot2QQNT(message));
-		}catch(e){
-			Log.w(e.toString());
-			Log.w(e.stack);
-			return {
-				msg: e.toString()
-			}
-		}
+		oneBotMsg.message = postData.message
+	}
 
-		let content = postData.message.map(item => OneBot2CqCode(item)).join('');
-		if(postData.group_id) Log.i(`发送群 (${postData.group_id}) 消息：${content}`);
-		else Log.i(`发送好友 (${postData.user_id}) 消息：${content}`);
+	try{
+		for(let message of oneBotMsg.message) messages.push(await OneBot2QQNT(message));
+	}catch(e){
+		Log.w(e.stack);
+		return { msg: e.toString() }
+	}
 
-    }
+	let content = oneBotMsg.message.map(item => OneBot2CqCode(item)).join('');
+	if(postData.group_id) Log.i(`发送群 (${postData.group_id}) 消息：${content}`);
+	else Log.i(`发送好友 (${postData.user_id}) 消息：${content}`);
 
-	return {
-		data: {
-			message_id: await Runtime.sendMessage(peer, messages)
-		}
-	};
+
+	let qqNtMsg = await Runtime.sendMessage(peer, messages);
+
+	oneBotMsg.time = parseInt(qqNtMsg?.msgTime || 0);
+	oneBotMsg.message_id = qqNtMsg.msgId;
+	if(postData.group_id){
+		oneBotMsg.message_type = "group";
+		oneBotMsg.sub_type = "normal";
+		oneBotMsg.group_id = postData.group_id;
+	}else{
+		oneBotMsg.message_type = "private";
+		oneBotMsg.sub_type = "friend";
+	}
+
+	Data.pushHistoryMessage(qqNtMsg, oneBotMsg);
+
+	return { data: { message_id: qqNtMsg.msgId } };
 }
 
 /**
  * 处理新消息
  */
 async function handleNewMessage(messages){
-	for(/** @type Message */ let message  of messages){
-		let msgData = await parseMessage(message);
+	for(/** @type QQNTMessage */ let message  of messages){
+		let oneBotMsg = await parseMessage(message);
 
-		if(!msgData.user_id){
+		if(!oneBotMsg.user_id){
 			Log.w(`无法获取发送者QQ号: uid: ${message.senderUid}`);
 			continue;
 		}
 
-		msgData.self_id = Data.selfInfo.uin;
-		msgData.post_type = "message";
-		msgData.message = [];
+		oneBotMsg.self_id = Data.selfInfo.uin;
+		oneBotMsg.post_type = "message";
+		oneBotMsg.font = 0;
+		oneBotMsg.message = [];
 
 		if(message.chatType == 1){
-			msgData.message_type = "private";
-			msgData.sub_type = "friend";
+			oneBotMsg.message_type = "private";
+			oneBotMsg.sub_type = "friend";
 		}else if(message.chatType == 2){
-			msgData.message_type = "group";
-			msgData.sub_type = "normal";
+			oneBotMsg.message_type = "group";
+			oneBotMsg.sub_type = "normal";
 		}
 
-		for(let element of message.elements) msgData.message.push(await QQNT2OneBot(element, message));
+		for(let element of message.elements) oneBotMsg.message.push(await QQNT2OneBot(element, message));
 
-		let content = msgData.message.map(item => OneBot2CqCode(item)).join('');
-		if(msgData.group_id) Log.i(`收到群 (${msgData.group_id}) 内 (${msgData.user_id}) 的消息：${content}`);
-		else Log.i(`收到好友 (${msgData.user_id}) 的消息：${content}`);
+		let content = oneBotMsg.message.map(item => OneBot2CqCode(item)).join('');
+		if(oneBotMsg.group_id) Log.i(`收到群 (${oneBotMsg.group_id}) 内 (${oneBotMsg.user_id}) 的消息：${content}`);
+		else Log.i(`收到好友 (${oneBotMsg.user_id}) 的消息：${content}`);
 
-		Data.pushHistoryMessage(message);
+		Data.pushHistoryMessage(message, oneBotMsg);
 
-		if(msgData.user_id != msgData.self_id || Setting.setting.setting.reportSelfMsg){
-			Reporter.reportData(msgData);
+		if(oneBotMsg.user_id != oneBotMsg.self_id || Setting.setting.setting.reportSelfMsg){
+			Reporter.reportData(oneBotMsg);
 		}
 	}
 }

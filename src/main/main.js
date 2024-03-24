@@ -9,6 +9,7 @@ const utils = require('../utils');
 const wsServer = require('../model/wsServer');
 const wsReverse = require('../model/wsReverseServer');
 const httpServer = require('../model/httpServer');
+const httpReporter = require("../model/httpReporter");
 
 const IPCHandle = require('../model/ipcHandle');
 
@@ -62,6 +63,7 @@ function onLoad(plugin) {
         if(window){
             Runtime.init(ipcMain, window.webContents);
             httpServer.startHttpServer(Setting.setting.http.port);
+            httpReporter.startHttpReport()
             if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port)
             if(Setting.setting.wsReverse.enable) wsReverse.startWsClient(Setting.setting.wsReverse)
             return true;

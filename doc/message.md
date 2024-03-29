@@ -1,24 +1,5 @@
 # 聊天消息
 
-### 消息上报基本结构
-```json lines
-{
-    "time": 0,
-    "self_id": "123456",        // 自身QQ号
-    "post_type": "message",     // 上报的类型（固定为message）
-    "message_id": "123456",     // 消息的msgId
-    "message_type": "private",  // 消息类型（私聊为private，群聊为group）
-    "sub_type": "friend",       // 消息子类型
-    "user_id": "",              // 消息发送者
-    "group_id": "",             // 收到消息的群（只有群消息才有这个字段）
-    "font": 0,
-    "message": [
-        // 消息内容，具体请参考下文
-    ]
-}
-```
-
-
 ### 支持的消息类型
 
 | 消息类型    | 接收 | 发送 | 备注                    |
@@ -40,6 +21,98 @@
 | 合并转发    | ✔  |
 | JSON 消息 | ✔  |
 | XML 消息  |    |
+
+### 消息上报结构
+#### 好友消息
+```json lines
+{
+    "time": 1711698307,
+    "message_id": "7351688249283856975",
+    "self_id": "123456",
+    "post_type": "message",
+    "user_id": "123456",
+    "font": 0,
+    "message": [
+        {
+            "type": "text",
+            "data": {
+                "text": "hello"
+            }
+        }
+    ],
+    "raw_message": "hello",
+    "message_type": "private",
+    "sub_type": "friend",
+    "sender": {
+        "user_id": "123456",
+        "nickname": "",
+        "sex": "unknown",
+        "age": 0
+    }
+}
+```
+
+#### 群消息
+```json lines
+{
+    "time": 1711698530,
+    "message_id": "7351689208262640341",
+    "self_id": "123456",
+    "post_type": "message",
+    "user_id": "123456",
+    "font": 0,
+    "message": [
+        {
+            "type": "image",
+            "data": {
+                "file": "file:///C:\\xxxx\\123456.jpg",
+                "url": "https://xxxxxxx",
+                "md5": "6BC2CAB569525B992398376BA7B3D8D4"
+            }
+        }
+    ],
+    "raw_message": "[CQ:image,md5=6BC2CAB569525B992398376BA7B3D8D4]",
+    "group_id": "123456",
+    "message_type": "group",
+    "sub_type": "group",
+    "sender": {
+        "user_id": "123456",
+        "nickname": "",
+        "card": "",
+        "sex": "unknown",
+        "age": 0,
+        "area": "",
+        "level": "0",
+        "role": "",
+        "title": ""
+    }
+}
+```
+#### 频道消息
+**注意：只有QQ打开某一具体频道的聊天界面才能接受到频道消息**
+```json lines
+{
+    "time": 1711698669,
+    "message_id": "7351689810098904374",
+    "self_id": "123456",
+    "post_type": "message",
+    "font": 0,
+    "message": [
+        {
+            "type": "text",
+            "data": {
+                "text": "hello"
+            }
+        }
+    ],
+    "raw_message": "hello",
+    "guild_id": "123456",
+    "channel_id": "123456",
+    "tiny_id": "123456",
+    "message_type": "guild",
+    "sub_type": "message"
+}
+```
 
 
 ## 消息结构

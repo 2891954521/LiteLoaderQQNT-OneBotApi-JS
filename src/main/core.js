@@ -2,13 +2,12 @@
  * 模块核心
  */
 
-const crypto = require('crypto');
-
 const { Log } = require("../logger");
-const { IPCAction, defaultSetting} = require("../common/const");
+const { defaultSetting } = require("../common/const");
 
 const utils = require("../utils");
 const {LimitedHashMap} = require("../utils");
+const { QQNtAPI } = require('../qqnt/QQNtAPI');
 
 /**
  * 数据
@@ -23,6 +22,12 @@ class Data{
         uin: "",
         uid: "",
     };
+
+    static guildInfo = {
+        nickname: "",
+        tiny_id: "",
+        avatar_url: ""
+    }
 
     /**
      * uid -> QQ号
@@ -99,6 +104,11 @@ class Data{
      * @type {Object.<string, Group>}
      */
     static groups = {};
+
+    /**
+     * 频道
+     */
+    static guilds = {};
 
     /**
      * @typedef GroupMember
@@ -286,7 +296,7 @@ class Data{
 
     // 更新群聊成员
     static async __updateGroupMember(groupId, num = 30, retry = true){
-        let members = await Runtime.getGroupMembers(groupId, num);
+        let members = await QQNtAPI.getGroupMembers(groupId, num);
 
         if(members && members?.size > 0){
             Log.d(`加载 群(${groupId}) 成员列表，共计${members.size}人`);
@@ -312,137 +322,11 @@ class Setting{
 }
 
 /**
- * 运行需要的数据
- */
-class Runtime{
-
-    static ipcMain = null;
-
-    /**
-     * 主界面的webContents
-     */
-    static mainPage = null;
-
-    static webContentsId = '2';
-
-    static ntCallCallback = { };
-
-    static getUserInfoCallback = { };
-
-    static sendMessageCallback = { };
-
-    /**
-     * 初始化Bot框架
-     * @param ipcMain
-     * @param webContents
-     */
-    static init(ipcMain, webContents){
-        Log.i("正在加载Bot框架");
-
-        this.ipcMain = ipcMain;
-        this.mainPage = webContents;
-        this.webContentsId = webContents.id.toString();
-
-        this.ntCall("ns-GlobalDataApi", "fetchAuthData", []).then(info => {
-            Log.d(`当前账号信息: uid: ${info.uid}, uin: ${info.uin}`);
-            Data.selfInfo = info;
-        });
-
-        // 获取好友列表
-        this.ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]).then();
-        // 获取群列表
-        this.ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]).then();
-
-        Log.i("Bot框架加载完成");
-    }
-
-    /**
-     * 主界面是否已加载
-     */
-    static isLoaded(){
-        return this.mainPage != null;
-    }
-
-    static ntCall(eventName, cmdName, args){
-        return new Promise((resolve) => {
-            const uuid = crypto.randomUUID();
-            this.ntCallCallback[uuid] = resolve;
-            this.ipcMain.emit(
-                `IPC_UP_${this.webContentsId}`,
-                { }, // IpcMainEvent
-                { type: 'request', callbackId: uuid, eventName: eventName + "-" + this.webContentsId },
-                [cmdName, ...args],
-            );
-        })
-    }
-
-    /**
-     * 从网络拉取最新的用户信息
-     */
-    static getUserInfoByUid(uid){
-        return new Promise((resolve) => {
-            this.getUserInfoCallback[uid.toString()] = resolve;
-            this.ntCall("ns-ntApi", "nodeIKernelProfileService/getUserDetailInfo",
-                [ { "uid": uid.toString() }, undefined ]
-            ).then();
-        });
-    }
-
-    /**
-     * 发送消息
-     * @param peer
-     * @param messages
-     * @return {Promise<QQNTMessage>}
-     */
-    static sendMessage(peer, messages){
-        return new Promise((resolve) => {
-            this.sendMessageCallback[peer.peerUid] = (qqNtMsg) => {
-                resolve(qqNtMsg)
-            };
-            this.ntCall("ns-ntApi",  "nodeIKernelMsgService/sendMsg", [{
-                msgId: "0",
-                peer: peer,
-                msgElements: messages,
-                msgAttributeInfos: new Map()
-            }, null]).then();
-        });
-    }
-
-    /**
-     * 获取群成员列表，有可能为空
-     * @param groupId {string} 群号
-     * @param num {number} 成员数量
-     * @return {Promise<Map<string, GroupMember>>}
-     */
-    static async getGroupMembers(groupId, num){
-        let sceneId = await Runtime.ntCall("ns-ntApi",  "nodeIKernelGroupService/createMemberListScene",
-            [{ groupCode: groupId, scene: "groupMemberList_MainWindow"}]
-        )
-        let res = await Runtime.ntCall("ns-ntApi",  "nodeIKernelGroupService/getNextMemberList",
-            [{ sceneId: sceneId, num: num}, null]
-        );
-
-        return res.result.infos;
-    }
-
-    /**
-     * 获取合并转发的消息
-     */
-    static async getMultiMessages(peer, rootId, msgId){
-        let js = await Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/getMultiMsg", [{
-            peer: peer,
-            rootMsgId: rootId,
-            parentMsgId: msgId ? msgId : rootId
-        }, null])
-        return js.msgList;
-    }
-}
-
-/**
  * 上报模块
  */
 class Reporter{
 
+    static isLoaded = false;
     static httpReporter = null;
 
     /** @type Function */
@@ -454,7 +338,7 @@ class Reporter{
      * 上报event消息
      */
     static reportData(data){
-        if(!Runtime.isLoaded()) return;
+        if(!this.isLoaded) return;
 
         if(Setting.setting.http.enable) this.__reportHttp(data);
 
@@ -486,6 +370,5 @@ function log(...args){
 module.exports = {
     Data,
     Setting,
-    Runtime,
     Reporter
 };

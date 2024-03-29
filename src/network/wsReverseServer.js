@@ -1,7 +1,7 @@
 const WebSocket = require('../lib/websocket');
 const { Log } = require("../logger");
 const { Reporter, Data} = require('../main/core');
-const { oneBot11API} = require('./oneBot11')
+const { oneBot11API} = require('../oneBot11/oneBot11')
 
 class WebSocketClient{
 

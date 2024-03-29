@@ -1,7 +1,8 @@
+const Api = require("./api");
 const MessageModel = require("./messageModel");
-const { Runtime, Data } = require("../main/core");
-const { createPeer, QQNT2OneBot} = require("../common/message");
-const {Log} = require("../logger");
+const { Data } = require("../main/core");
+const { QQNtAPI } = require('../qqnt/QQNtAPI');
+const { createPeer, parseFromQQNT } = require("./message");
 
 const oneBot11API = {
 
@@ -16,7 +17,7 @@ const oneBot11API = {
 		return {
 			code: 200,
 			msg: "OK",
-			data: await Runtime.ntCall(postData['eventName'], postData['cmdName'], postData['args'])
+			data: await QQNtAPI.ntCall(postData['eventName'], postData['cmdName'], postData['args'])
 		};
 	},
 
@@ -26,7 +27,7 @@ const oneBot11API = {
 	 */
 	'__getUserByUid': async (postData) => {
 		try{
-			return await Runtime.getUserInfoByUid(postData['uid']);
+			return await QQNtAPI.getUserInfoByUid(postData['uid']);
 		}catch(e){
 			return e.stack.toString();
 		}
@@ -37,7 +38,7 @@ const oneBot11API = {
 		return {
 			status: 'ok',
 			retcode: 0,
-			data: await Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/sendMsg", [{
+			data: await QQNtAPI.ntCall("ns-ntApi", "nodeIKernelMsgService/sendMsg", [{
 				msgId: "0",
 				peer: postData.peer,
 				msgElements: postData.elements,
@@ -153,7 +154,7 @@ const oneBot11API = {
 			return { code: 400, msg: "Must provide 'msgId' and 'elementId'." }
 		}
 
-		Runtime.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia",[
+		QQNtAPI.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia",[
 			{
 				"getReq": {
 					"msgId": postData['msgId'],
@@ -193,7 +194,7 @@ const oneBot11API = {
 			}
 		}
 
-		let result = await Runtime.ntCall(
+		let result = await QQNtAPI.ntCall(
 			"ns-ntApi",
 			"nodeIKernelMsgService/recallMsg",
 			[{ peer, "msgIds": [ postData.message_id.toString() ]
@@ -247,7 +248,7 @@ const oneBot11API = {
 			return { status: 'failed', "retcode": 400, msg: "Must provide 'id' (msgId)." }
 		}
 
-		let peer = null;
+		let peer;
 		let msg = Data.historyMessage.get(postData.id);
 		if(msg){
 			peer = {
@@ -267,11 +268,11 @@ const oneBot11API = {
 		}
 
 		let forwardMsg = [];
-		let messages = await Runtime.getMultiMessages(peer, postData.id);
+		let messages = await QQNtAPI.getMultiMessages(peer, postData.id);
 		for(let message of messages){
 			let content = [];
 			for(let element of message.elements){
-				content.push(await QQNT2OneBot(element, message));
+				content.push(await parseFromQQNT(message, element));
 			}
 			forwardMsg.push({
 				"type": "node",
@@ -459,7 +460,7 @@ const oneBot11API = {
 			return {
 				status: 'ok',
 				retcode: 0,
-				data: await Runtime.ntCall(
+				data: await QQNtAPI.ntCall(
 					"ns-ntApi",
 					"nodeIKernelBuddyService/approvalFriendRequest",
 					[{
@@ -479,7 +480,6 @@ const oneBot11API = {
 		}
 	},
 
-	// get_msg 获取消息
 	// send_like 发送好友赞
 	// set_group_kick 群组踢人
 	// set_group_ban 群组单人禁言
@@ -505,6 +505,9 @@ const oneBot11API = {
 
 }
 
+for(let item of Api.api){
+	oneBot11API[item.url] = item.handle
+}
 
 module.exports = {
 	oneBot11API

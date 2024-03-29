@@ -2,7 +2,7 @@ const http = require('http');
 const querystring = require('querystring');
 
 const { Log } = require('../logger');
-const { oneBot11API} = require("./oneBot11");
+const { oneBot11API} = require("../oneBot11/oneBot11");
 
 
 let errorMsg = null;

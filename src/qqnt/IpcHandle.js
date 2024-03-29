@@ -3,8 +3,10 @@
  */
 
 const { Log } = require("../logger");
-const { Data, Runtime, Setting } = require('../main/core');
-const MessageModel = require('../model/messageModel');
+const { Data, Setting } = require('../main/core');
+const { QQNtAPI } = require('../qqnt/QQNtAPI');
+const Api = require("./api");
+const MessageModel = require('../oneBot11/messageModel');
 
 
 /**
@@ -28,9 +30,9 @@ function onSendMsg(arg){
 	/** @type QQNTMessage */
 	const msgRecord = arg.payload?.msgRecord;
 	if(msgRecord){
-		if(msgRecord.peerUid in Runtime.sendMessageCallback){
-			Runtime.sendMessageCallback[msgRecord.peerUid](msgRecord);
-			delete Runtime.sendMessageCallback[msgRecord.peerUid];
+		if(msgRecord.peerUid in QQNtAPI.sendMessageCallback){
+			QQNtAPI.sendMessageCallback[msgRecord.peerUid](msgRecord);
+			delete QQNtAPI.sendMessageCallback[msgRecord.peerUid];
 		}
 	}
 }
@@ -99,7 +101,9 @@ const handleCmd = {
 		for(let msg of msgList){
 			for(let element of msg.elements){
 				if(element.elementType == 8 && element.grayTipElement.subElementType == 1){
-					MessageModel.recallMessage(msg).then();
+					MessageModel.recallMessage(msg).then(() => { }, (err) => {
+						Log.e("解析撤回消息失败: " + err.stack + '\n消息内容: ' + JSON.stringify(msg));
+					});
 					break;
 				}
 			}
@@ -140,9 +144,9 @@ const handleCmd = {
 		arg?.payload?.data?.buddyReqs
 			?.filter(friendRequest => friendRequest.isUnread && !friendRequest.isDecide)
 			.forEach(friendRequest => {
-				Runtime.getUserInfoByUid(friendRequest.friendUid).then(info => {
+				QQNtAPI.getUserInfoByUid(friendRequest.friendUid).then(info => {
 					if(Setting.setting.setting.autoAcceptFriendRequest){
-						Runtime.ntCall(
+						QQNtAPI.ntCall(
 							"ns-ntApi",
 							"nodeIKernelBuddyService/approvalFriendRequest",
 							[{
@@ -182,9 +186,9 @@ const handleCmd = {
 	 */
 	"nodeIKernelProfileListener/onProfileDetailInfoChanged": (arg) => {
 		const uid = arg.payload?.info?.uid;
-		if(uid && uid in Runtime.getUserInfoCallback){
-			Runtime.getUserInfoCallback[uid](arg.payload.info);
-			delete Runtime.getUserInfoCallback[uid];
+		if(uid && uid in QQNtAPI.getUserInfoCallback){
+			QQNtAPI.getUserInfoCallback[uid](arg.payload.info);
+			delete QQNtAPI.getUserInfoCallback[uid];
 		}
 	},
 
@@ -199,6 +203,10 @@ const handleCmd = {
 	}
 }
 
+for(let item of Api.api){
+	handleCmd[item.cmdName] = item.handle
+}
+
 /**
  * 解析向渲染进程发送的消息
  */
@@ -206,10 +214,6 @@ function onMessageHandle(cmdObject){
 	if(cmdObject.cmdName in handleCmd){
 		handleCmd[cmdObject.cmdName](cmdObject);
 	}
-}
-
-function log(...args) {
-	console.log("\x1b[32m[OneBotAPI-MessageHandle]\x1b[0m", ...args);
 }
 
 module.exports = {

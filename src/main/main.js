@@ -1,17 +1,21 @@
 const { ipcMain, BrowserWindow } = require("electron");
 
 const { IPCAction, defaultSetting} = require('../common/const');
-const { Data, Setting, Runtime } = require('./core');
+const { Data, Setting, Reporter} = require('./core');
 
 const { Log } = require('../logger');
 const utils = require('../utils');
 
-const wsServer = require('../model/wsServer');
-const wsReverse = require('../model/wsReverseServer');
-const httpServer = require('../model/httpServer');
-const httpReporter = require("../model/httpReporter");
+const wsServer = require('../network/wsServer');
+const wsReverse = require('../network/wsReverseServer');
+const httpServer = require('../network/httpServer');
+const httpReporter = require("../network/httpReporter");
 
-const IPCHandle = require('../model/ipcHandle');
+const { QQNtAPI} = require('../qqnt/QQNtAPI');
+const IPCHandle = require('../qqnt/IpcHandle');
+
+
+let isLoaded = false;
 
 function onLoad(plugin) {
 
@@ -44,7 +48,6 @@ function onLoad(plugin) {
         }
     });
 
-
     ipcMain.handle(IPCAction.ACTION_GET_GROUPS, () => {
         return Object.values(Data.groups);
     });
@@ -54,18 +57,43 @@ function onLoad(plugin) {
     });
 
     ipcMain.on(IPCAction.ACTION_LOAD_MAIN_PAGE, (event, arg) => {
-        if(Runtime.isLoaded()){
+        if(isLoaded){
             Log.w('主页面已加载');
             return false;
         }
 
         const window = BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().includes('#/main/message'));
         if(window){
-            Runtime.init(ipcMain, window.webContents);
+            Log.i("正在加载Bot框架");
+
+            QQNtAPI.ntCall("ns-GlobalDataApi", "fetchAuthData", []).then(info => {
+                Log.d(`当前账号信息: uid: ${info.uid}, uin: ${info.uin}`);
+                Data.selfInfo = info;
+            });
+
+            // 获取好友列表
+            QQNtAPI.ntCall("ns-ntApi", "nodeIKernelBuddyService/getBuddyList", [{ force_update: false }, undefined]).then();
+            // 获取群列表
+            QQNtAPI.ntCall("ns-ntApi", "nodeIKernelGroupService/getGroupList", [{ force_update: false }, undefined]).then();
+
+            // QQNtAPI.getGuildList().then(data => Data.guilds = data);
+
+            // [{
+            // 	"eventName": "ns-ntApi-5"
+            // }, ["nodeIKernelMsgService/getAllJoinGuildCnt", null, null]]
+            //
+            // {
+            // 	"result": 0, "errMsg": "", "number": 2
+            // }
+
             httpServer.startHttpServer(Setting.setting.http.port);
-            httpReporter.startHttpReport()
-            if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port)
-            if(Setting.setting.wsReverse.enable) wsReverse.startWsClient(Setting.setting.wsReverse)
+            if(Setting.setting.http.enable) httpReporter.startHttpReport();
+            if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port);
+            if(Setting.setting.wsReverse.enable) wsReverse.startWsClient(Setting.setting.wsReverse);
+            Reporter.isLoaded = true;
+
+            Log.i("Bot框架加载完成");
+            isLoaded = true;
             return true;
         }
 
@@ -75,6 +103,11 @@ function onLoad(plugin) {
 
     ipcMain.on(IPCAction.ACTION_SET_CONFIG, (event, setting) => {
         Setting.setting = setting;
+        if(Setting.setting.http.enable){
+            httpReporter.startHttpReport()
+        }else{
+            httpReporter.stopHttpReport()
+        }
         Log.setDebug(setting.debug.debug, setting.debug.ipc);
         utils.saveSetting(setting);
     });
@@ -140,9 +173,9 @@ function patchedSend(channel, ...args){
 
     if(args[0]?.callbackId){
         const id = args[0].callbackId;
-        if(id in Runtime.ntCallCallback){
-            Runtime.ntCallCallback[id](args[1]);
-            delete Runtime.ntCallCallback[id];
+        if(id in QQNtAPI.ntCallCallback){
+            QQNtAPI.ntCallCallback[id](args[1]);
+            delete QQNtAPI.ntCallCallback[id];
             return true;
         }
     }

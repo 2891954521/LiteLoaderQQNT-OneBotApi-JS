@@ -29,6 +29,14 @@ async function onSettingWindowCreated(view){
 	const wsReverseApiUrl = view.querySelector(".ws #wsReverseApiUrl");
 	const wsReverseEventUrl = view.querySelector(".ws #wsReverseEventUrl");
 
+	ipcRenderer.invoke(IPCAction.ACTION_GET_FRIENDS).then(friends => {
+		view.querySelector('.data #friendList').innerHTML = `共计: ${friends.length} 个好友`;
+	});
+
+	ipcRenderer.invoke(IPCAction.ACTION_GET_GROUPS).then(groups => {
+		view.querySelector('.data #groupList').innerHTML = `共计: ${groups.length} 个群聊`;
+	});
+
 	function updateServerStatus(){
 		ipcRenderer.invoke(IPCAction.ACTION_SERVER_STATUS).then(data => {
 			updateStatus(httpStatus, data.http);
@@ -164,6 +172,12 @@ async function onSettingWindowCreated(view){
 		}
 	});
 
+	bindButton(view, ".data #updateFriendList", () => {
+		ipcRenderer.invoke(IPCAction.ACTION_GET_FRIENDS).then(friends => {
+			view.querySelector('.data #friendList').innerHTML = `共计: ${friends.length} 个好友`;
+		});
+	});
+
 	bindButton(view, ".data #updateGroupList", () => {
 		ipcRenderer.invoke(IPCAction.ACTION_GET_GROUPS).then(groups => {
 			view.querySelector('.data #groupList').innerHTML = `共计: ${groups.length} 个群聊`;
@@ -173,6 +187,12 @@ async function onSettingWindowCreated(view){
 	// 上报自身消息
 	bindToggle(view, ".setting #reportSelfMsg", configData.setting.reportSelfMsg, (enable) => {
 		configData.setting.reportSelfMsg = enable;
+		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
+	});
+
+	// 上报启动前的消息
+	bindToggle(view, ".setting #reportOldMsg", configData.setting.reportOldMsg, (enable) => {
+		configData.setting.reportOldMsg = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
 

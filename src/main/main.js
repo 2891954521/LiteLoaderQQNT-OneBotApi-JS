@@ -48,6 +48,10 @@ function onLoad(plugin) {
         }
     });
 
+    ipcMain.handle(IPCAction.ACTION_GET_FRIENDS, () => {
+        return Object.values(Data.friends);
+    });
+
     ipcMain.handle(IPCAction.ACTION_GET_GROUPS, () => {
         return Object.values(Data.groups);
     });
@@ -166,20 +170,11 @@ function patchedIPC(_, status, name, ...args) {
 function patchedSend(channel, ...args){
     if(Log.isDebugIPC) Log.ipcDebugger.IPCReceive(channel, ...args);
 
-    const cmdObject = args?.[1]?.[0];
-    if(cmdObject?.cmdName){
-        IPCHandle.onMessageHandle(cmdObject);
-    }
+    const cmdObject = args[1]?.[0];
+    const cmdName = cmdObject?.cmdName;
+    if(cmdName) IPCHandle.onMessageHandle(cmdObject);
 
-    if(args[0]?.callbackId){
-        const id = args[0].callbackId;
-        if(id in QQNtAPI.ntCallCallback){
-            QQNtAPI.ntCallCallback[id](args[1]);
-            delete QQNtAPI.ntCallCallback[id];
-            return true;
-        }
-    }
-    return false;
+    return QQNtAPI.ntCallBack(args, cmdObject)
 }
 
 if(LiteLoader?.plugins?.['OneBotApi-JS']){

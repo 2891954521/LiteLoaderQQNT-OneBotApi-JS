@@ -6,21 +6,6 @@ const { createPeer, parseFromQQNT } = require("./message");
 
 const oneBot11API = {
 
-	'': () => {
-		return { code: 200, msg: "Http server is running" };
-	},
-
-	/**
-	 * 调用ntCall
-	 */
-	'__ntCall': async (postData) => {
-		return {
-			code: 200,
-			msg: "OK",
-			data: await QQNtAPI.ntCall(postData['eventName'], postData['cmdName'], postData['args'])
-		};
-	},
-
 	/**
 	 * 获取用户信息
 	 *
@@ -335,38 +320,6 @@ const oneBot11API = {
 		};
 	},
 
-
-	/**
-	 * 获取群列表
-	 * result:
-	 * {
-	 *   code: 200,
-	 *   msg: "OK",
-	 *   data: [
-	 *     {
-	 *       group_id: 群号,
-	 *       group_name: 群名称,
-	 *       member_count: 成员数,
-	 *       max_member_count: 最大成员数（群容量）
-	 *     },
-	 *     ...
-	 *   ]
-	 * }
-	 */
-	'get_group_list': () => {
-		return {
-			status: 'ok',
-			retcode: 0,
-			data: Object.values(Data.groups).map(group => {
-				return {
-					'group_id': group.groupCode,
-					'group_name': group.groupName,
-					'member_count': group.memberCount,
-					'max_member_count': group.maxMember,
-				}
-			})
-		};
-	},
 
 	/**
 	 * 获取群信息

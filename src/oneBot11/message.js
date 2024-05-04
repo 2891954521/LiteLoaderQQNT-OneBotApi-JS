@@ -300,20 +300,20 @@ class Image extends Message{
 	static async parseFromQQNT(QQNTMsg, element){
 		let picElement = element.picElement;
 
-		if(!fs.existsSync(picElement.sourcePath)){
-			await QQNtAPI.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia", [{
-				getReq: {
-					msgId: QQNTMsg.msgId,
-					elementId: element.elementId,
-					chatType: QQNTMsg.chatType,
-					peerUid: QQNTMsg.peerUid,
-					thumbSize: 0,
-					downloadType: 2,
-					filePath: picElement.thumbPath.get(0),
-				},
-			}, undefined,
-			]);
-		}
+		// if(!fs.existsSync(picElement.sourcePath)){
+		// 	await QQNtAPI.ntCall("ns-ntApi", "nodeIKernelMsgService/downloadRichMedia", [{
+		// 		getReq: {
+		// 			msgId: QQNTMsg.msgId,
+		// 			elementId: element.elementId,
+		// 			chatType: QQNTMsg.chatType,
+		// 			peerUid: QQNTMsg.peerUid,
+		// 			thumbSize: 0,
+		// 			downloadType: 2,
+		// 			filePath: picElement.thumbPath.get(0),
+		// 		},
+		// 	}, undefined,
+		// 	]);
+		// }
 
 		return new Image({
 			file: picElement.sourcePath.startsWith("/") ? "file://" : "file:///" + picElement.sourcePath,
@@ -422,11 +422,19 @@ class Ark extends Message{
 	}
 
 	toCqCode(){
-		return `[CQ:json,id=${this.data.data}]`;
+		return `[CQ:json,data=${this.data.data}]`;
 	}
 
 	toQQNT(){
-		return new Text("[Json消息]").toQQNT()
+		return {
+			elementType: 10,
+			elementId: "",
+			arkElement: {
+				"bytesData": JSON.stringify(this.data.data),
+				"linkInfo": null,
+				"subElementType": null
+			}
+		}
 	}
 
 	static parseFromQQNT(QQNTMsg, element){
@@ -442,7 +450,7 @@ class Forward extends Message{
 	 * @param data {Object}
 	 */
 	constructor(data){
-		super("file", data);
+		super("forward", data);
 	}
 
 	toCqCode(){
@@ -457,6 +465,29 @@ class Forward extends Message{
 		return new Forward({ id: QQNTMsg.msgId })
 	}
 }
+
+
+class MarkDown extends Message{
+
+	constructor(content){
+		super("markdown", {
+			content: content
+		});
+	}
+
+	toCqCode(){
+		return this.data.content;
+	}
+
+	toQQNT(){
+		return new Text("[MarkDown消息]").toQQNT()
+	}
+
+	static parseFromQQNT(QQNTMsg, element){
+		return new MarkDown(element.markdownElement.content)
+	}
+}
+
 
 /**
  * 从Json中创建QQNTMessage
@@ -487,6 +518,12 @@ async function createOneBot(oneBotMsg, group_id = null){
 
 		case 'reply':
 			return new Reply(oneBotMsg.data);
+
+		case 'json':
+			return new Ark(oneBotMsg.data.data);
+
+		case 'markdown':
+			return new MarkDown(oneBotMsg.data.content);
 
 		// case 'shake':
 		// 	return Shake.OneBot2QQNT(item);
@@ -527,6 +564,9 @@ async function parseFromQQNT(QQNTMessage, element){
 
 		// Json消息
 		case 10: return Ark.parseFromQQNT(QQNTMessage, element);
+
+		// MD消息
+		case 14: return MarkDown.parseFromQQNT(QQNTMessage, element);
 
 		// 转发消息
 		case 16: return Forward.parseFromQQNT(QQNTMessage, element)

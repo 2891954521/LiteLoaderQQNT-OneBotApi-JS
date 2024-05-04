@@ -27,14 +27,16 @@ class Log {
 			let d = new Date();
 			let logFile = path.join(this.logPath, `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} ${d.getHours()}-${d.getMinutes()}-${d.getSeconds()}.log`);
 
-			this.fileStream = fs.createWriteStream(logFile);
+			this.fileStream = null
+			// this.fileStream = fs.createWriteStream(logFile);
+
 			Log.i(`debug mode is on, debug log to ${logFile}`)
 		}
 	}
 
 	static d(...args){
 		if(this.isDebug){
-			console.log("\x1b[37m[OneBotAPI-Debug]\x1b[0m", ...args);
+			console.log("\x1b[36m[OneBotAPI-Debug]\x1b[0m", ...args);
 			this.fileStream?.write("[Debug]" + args.join('') + '\n');
 		}
 	}
@@ -85,6 +87,7 @@ class IPCDebugger {
 		if(callbackId){
 			// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
 			this.debugIPC[callbackId] = JSON.stringify(args?.[0]);
+			// Log.d(`[IPC Call ${callbackId}] -> ${JSON.stringify(args)}`);
 		}else{
 			Log.d(`[IPC Call] -> ${JSON.stringify(args)}`);
 		}
@@ -101,12 +104,19 @@ class IPCDebugger {
 
 		let callbackId = args?.[0]?.callbackId;
 		if(callbackId){
-			if(args?.[1]){
-				let str = JSON.stringify(args?.[1]);
-				// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
-				Log.d(`\x1b[36m[IPC Func]\x1b[0m ${this.debugIPC[callbackId]} \x1b[36m=>\x1b[0m ${str}`);
+			if(this.debugIPC[callbackId]){
+				if(args?.[1]){
+					let str = JSON.stringify(args?.[1]);
+					// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);
+					Log.d(`\x1b[36m[IPC Func]\x1b[0m ${this.debugIPC[callbackId]} \x1b[36m=>\x1b[0m ${str}`);
+				}
+				delete this.debugIPC[callbackId];
+			}else{
+				if(args?.[1]){
+					let str = JSON.stringify(args?.[1]);
+					Log.d(`[IPC Resp ${callbackId}] <- ${str}`);
+				}
 			}
-			delete this.debugIPC[callbackId];
 		}else{
 			let str = JSON.stringify(args);
 			// if(str.length > 100) str = str.slice(0, 45) + ' ... ' + str.slice(str.length - 45);

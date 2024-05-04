@@ -1,9 +1,9 @@
 const {Data} = require("../main/core");
-const {createPeer, Text, createOneBot} = require("./message");
+const {Text, createOneBot} = require("./message");
 const Event = require("./event");
 const {QQNtAPI} = require("../qqnt/QQNtAPI");
 const {Log} = require("../logger");
-const {oneBot11API} = require("./oneBot11");
+
 
 class BaseApi{
 	constructor(url){
@@ -11,8 +11,116 @@ class BaseApi{
 	}
 	async handle(postData){
 		return {
-			code: 0,
-			msg: "Http server is running"
+			status: "ok",
+			retcode: 0
+		};
+	}
+}
+
+
+class NtCall extends BaseApi{
+
+	constructor(){ super("__ntCall") }
+
+	async handle(postData){
+		return {
+			code: 200,
+			msg: "OK",
+			data: await QQNtAPI.ntCall(postData['eventName'], postData['cmdName'], postData['args'], postData['webContentsId'] || '2')
+		};
+	}
+}
+
+class NtCallAsync extends BaseApi{
+
+	constructor(){ super("__ntCallAsync") }
+
+	async handle(postData){
+		return {
+			code: 200,
+			msg: "OK",
+			data: await QQNtAPI.ntCallAsync(
+				postData['eventName'],
+				postData['cmdName'],
+				postData['args'],
+				postData['callBackCmdName'],
+				() => {return true},
+				false,
+				postData['webContentsId'] || '2'
+			)
+		};
+	}
+}
+
+
+/**
+ * 获取群列表
+ * result:
+ * {
+ *   code: 200,
+ *   msg: "OK",
+ *   data: [
+ *     {
+ *       group_id: 群号,
+ *       group_name: 群名称,
+ *       member_count: 成员数,
+ *       max_member_count: 最大成员数（群容量）
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+class getGroupList extends BaseApi{
+
+	constructor(){ super("get_group_list") }
+
+	async handle(postData){
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: Object.values(Data.groups).map(group => {
+				return{
+					'group_id': group.groupCode,
+					'group_name': group.groupName,
+					'member_count': group.memberCount,
+					'max_member_count': group.maxMember,
+				}
+			})
+		};
+	}
+}
+
+
+class getGroupMsgMask extends BaseApi{
+
+	constructor(){ super("get_group_msg_mask") }
+
+	async handle(postData){
+		const type = {
+			1: "接收并提醒",
+			2: "收入群助手且不提醒",
+			3: "屏蔽消息",
+			4: "接受消息但不提醒",
+		}
+		const groups = Data.groups
+
+		return {
+			status: 'ok',
+			retcode: 0,
+			data:
+				(await QQNtAPI.ntCallAsync("ns-ntApi", "nodeIKernelGroupService/getGroupMsgMask", [null, null],
+					"nodeIKernelGroupListener/onGroupsMsgMaskResult",
+					() => { return true },
+					false,
+					'3'
+				)).payload.groupsMsgMask.map(group => {
+					return {
+						'group_id': group.groupCode,
+						'group_name': groups[group.groupCode].groupName,
+						'msg_mask': group.msgMask,
+						'msg_type': type[group.msgMask],
+					}
+				})
 		};
 	}
 }
@@ -107,6 +215,14 @@ class SendGuildMsg extends BaseApi{
 
 module.exports = {
 	api: [
+		new BaseApi(''),
+
+		new NtCall(),
+		new NtCallAsync(),
+
+		new getGroupList(),
+		new getGroupMsgMask(),
+
 		new SendGuildMsg(),
 		new getGuildList(),
 		new getGuildProfile()

@@ -11,23 +11,15 @@ module.exports = {
             
         ACTION_LOG: "one_bot_api_log",
 
-        ACTION_SEND_MSG: "one_bot_api_send_msg",
-        ACTION_RECALL_MSG: "one_bot_api_recall_msg",
+        /**
+         * 获取好友列表
+         */
+        ACTION_GET_FRIENDS: "one_bot_api_get_friends",
 
         /**
          * 获取群列表
          */
         ACTION_GET_GROUPS: "one_bot_api_get_groups",
-
-        ACTION_UPDATE_SELF_INFO: "one_bot_api_set_self_info",
-        ACTION_UPDATE_FRIENDS: "one_bot_api_update_friends",
-        ACTION_UPDATE_GROUPS: "one_bot_api_update_groups",
-
-
-        ACTION_GET_USER_BY_UID: "one_bot_api_get_user_by_uid",
-
-
-        ACTION_DOWNLOAD_FILE: "one_bot_api_download_file",
 
         /**
          * 主界面加载
@@ -68,10 +60,14 @@ module.exports = {
     // 默认设置文件
     defaultSetting: {
         "http": {
+            'enableServer': true,
             "port": 5000,
 
             'enable': true,
-            "host": "http://127.0.0.1:8080/"
+            "host": "http://127.0.0.1:8080/",
+
+            'enableReport': true,
+            "hosts": ["http://127.0.0.1:8080/"]
         },
 
         "ws": {
@@ -91,6 +87,7 @@ module.exports = {
 
         "setting": {
             "reportSelfMsg": true,
+            "reportOldMsg": false,
             "autoAcceptFriendRequest": false
         },
 

@@ -122,13 +122,13 @@
 
                 <setting-item>
                     <setting-text>好友列表</setting-text>
-                    <setting-text data-type="secondary" id="friendList"> 未完成 </setting-text>
+                    <setting-text data-type="secondary" id="friendList"> 正在获取 </setting-text>
                     <setting-button data-type="secondary" id="updateFriendList"> 重新加载 </setting-button>
                 </setting-item>
 
                 <setting-item>
                     <setting-text>群列表</setting-text>
-                    <setting-text data-type="secondary" id="groupList"> 未完成 </setting-text>
+                    <setting-text data-type="secondary" id="groupList"> 正在获取 </setting-text>
                     <setting-button data-type="secondary" id="updateGroupList"> 重新加载 </setting-button>
                 </setting-item>
 
@@ -146,6 +146,14 @@
                         <setting-text data-type="secondary">上报自身发送的消息，不包括调用API发送的消息</setting-text>
                     </div>
                     <setting-switch id="reportSelfMsg"></setting-switch>
+                </setting-item>
+
+                <setting-item>
+                    <div>
+                        <setting-text>上报QQ启动前的消息</setting-text>
+                        <setting-text data-type="secondary">上报QQ启动前收到的消息（仅包含收到的部分消息）</setting-text>
+                    </div>
+                    <setting-switch id="reportOldMsg"></setting-switch>
                 </setting-item>
 
                 <setting-item>

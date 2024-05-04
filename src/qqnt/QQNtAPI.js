@@ -4,37 +4,124 @@ const {Log} = require("../logger");
 
 class QQNtAPI {
 
-    webContentsId = '2';
-
     ntCallCallback = {};
-
-    getUserInfoCallback = {};
 
     sendMessageCallback = {};
 
-    ntCall(eventName, cmdName, args) {
-        return new Promise((resolve) => {
+    ntCallAsyncCallback = {};
+
+    ntCall(eventName, cmdName, args, webContentsId = '2') {
+        return new Promise((resolve, reject) => {
             const uuid = crypto.randomUUID();
             this.ntCallCallback[uuid] = resolve;
+            setTimeout(() => {
+                if(this.ntCallCallback[uuid]){
+                    delete this.ntCallCallback[uuid];
+                    Log.e(`call QQNtAPI timeout: eventName=${eventName}, cmdName=${cmdName}`);
+                    reject('timeout');
+                }
+            }, 5000)
             ipcMain.emit(
-                `IPC_UP_${this.webContentsId}`,
+                `IPC_UP_${webContentsId}`,
                 {}, // IpcMainEvent
-                {type: 'request', callbackId: uuid, eventName: eventName + "-" + this.webContentsId},
+                {type: 'request', callbackId: uuid, eventName: `${eventName}-${webContentsId}`},
                 [cmdName, ...args],
             );
         })
     }
 
     /**
+     * 具有异步返还结果的ntCall
+     * @param eventName
+     * @param cmdName
+     * @param args {Array}
+     * @param {string} callBackCmdName 回调的CmdName
+     * @param {(Object) => Boolean} isMyResult 判断收到的消息是否为需要的消息
+     * @param {boolean} registerAfterCall 是否在调用之前注册回调
+     * @param {string} webContentsId
+     * @return {Promise<unknown>}
+     */
+    ntCallAsync(eventName, cmdName, args= [], callBackCmdName,
+        isMyResult = () => { return true },
+        registerAfterCall = false,
+        webContentsId = '2'
+    ){
+        return new Promise((resolve, reject) => {
+            const uuid = crypto.randomUUID();
+
+            function IsMyResult(cmdObject){
+                if(isMyResult(cmdObject)){
+                    resolve(cmdObject);
+                    return true;
+                }else{
+                    return false;
+                }
+            }
+
+            if(!this.ntCallAsyncCallback[callBackCmdName]) this.ntCallAsyncCallback[callBackCmdName] = { };
+
+            if(!registerAfterCall) this.ntCallAsyncCallback[callBackCmdName][uuid] = IsMyResult;
+
+            this.ntCallCallback[uuid] = (cmdObject) => {
+                if(!cmdObject || cmdObject.result == 0){
+                    if(registerAfterCall) this.ntCallAsyncCallback[callBackCmdName][uuid] = IsMyResult;
+                }else{
+                    Log.e(`call QQNtAPI failed: eventName=${eventName}, cmdName=${cmdName}`);
+                    reject('failed');
+                }
+            };
+
+            setTimeout(() => {
+                if(this.ntCallCallback[uuid] || this.ntCallAsyncCallback[callBackCmdName][uuid]){
+                    if(this.ntCallCallback[uuid]) delete this.ntCallCallback[uuid];
+                    if(this.ntCallAsyncCallback[callBackCmdName][uuid]) delete this.ntCallAsyncCallback[callBackCmdName][uuid];
+                    Log.e(`call QQNtAPI timeout: eventName=${eventName}, cmdName=${cmdName}`);
+                    reject('timeout');
+                }
+            }, 5000);
+
+            ipcMain.emit(
+                `IPC_UP_${webContentsId}`,
+                {}, // IpcMainEvent
+                {type: 'request', callbackId: uuid, eventName: eventName + "-" + webContentsId},
+                [cmdName, ...args],
+            );
+        })
+    }
+
+    ntCallBack(args, cmdObject){
+        if(args[0]?.callbackId){
+            const id = args[0].callbackId;
+            if(id in this.ntCallCallback){
+                this.ntCallCallback[id](args[1]);
+                delete this.ntCallCallback[id];
+                return true;
+            }
+        }
+        const cmdName = cmdObject?.cmdName;
+        if(cmdName){
+            if(cmdName in this.ntCallAsyncCallback){
+                for(let uuid in this.ntCallAsyncCallback[cmdName]){
+                    if(this.ntCallAsyncCallback[cmdName][uuid](cmdObject)){
+                        delete this.ntCallAsyncCallback[cmdName][uuid];
+                        return true;
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    /**
      * 从网络拉取最新的用户信息
      */
     getUserInfoByUid(uid) {
-        return new Promise((resolve) => {
-            this.getUserInfoCallback[uid.toString()] = resolve;
-            this.ntCall("ns-ntApi", "nodeIKernelProfileService/getUserDetailInfo",
-                [{"uid": uid.toString()}, undefined]
-            ).then();
-        });
+        return this.ntCallAsync(
+            "ns-ntApi", "nodeIKernelProfileService/getUserDetailInfo",
+            [{"uid": uid.toString()}, undefined],
+            "nodeIKernelProfileListener/onProfileDetailInfoChanged",
+            (cmdObject) => { return cmdObject.payload?.info?.uid == uid }
+        )
     }
 
     /**
@@ -45,16 +132,17 @@ class QQNtAPI {
         let data = await this.ntCall("ns-ntApi", "nodeIKernelGuildService/getGuildAndChannelListFromCache", []);
         if(data?.guildList){
             for(let guild of data.guildList){
-                guilds[guild.guildId] = {
-                    guild_id: guild.guildId,
-                    guild_name: guild.name,
-                    guild_display_id: guild.showNumber,
-                    guild_profile: guild.profile,
-                    create_time: guild.createTime,
-                    max_member_count: guild.userMaxNum,
-                    max_robot_count: guild.robotMaxNum,
-                    max_admin_count: guild.adminMaxNum,
-                    member_count: guild.userNum,
+                let guildId = guild.guildId || guild.guild_id
+                guilds[guildId] = {
+                    guild_id: guildId,
+                    guild_name: guild.name || guild.guild_info.guild_name,
+                    guild_display_id: guild.showNumber || guild.guild_info.guild_code,
+                    guild_profile: guild.profile || guild.guild_info.profile,
+                    create_time: guild.createTime || 0,
+                    max_member_count: guild.userMaxNum || 0,
+                    max_robot_count: guild.robotMaxNum || 0,
+                    max_admin_count: guild.adminMaxNum || 0,
+                    member_count: guild.userNum || 0,
                     owner_id: ""
                 }
             }

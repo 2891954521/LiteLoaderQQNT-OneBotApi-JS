@@ -128,7 +128,7 @@ class Data{
      */
     /**
      * 群成员的信息
-     * 群号 -> 群成员列表 -> 群成员信息
+     * 群号 -> { 群成员列表 -> 群成员信息 }
      * @type {Object.<string, Object.<string, GroupMember>>}
      */
     static groupMembers = {};
@@ -191,7 +191,7 @@ class Data{
         if(user){
             return user;
         }else{
-            log(`User with QQ ${qq} not found.`);
+            Log.e(`User with QQ ${qq} not found.`);
             return null;
         }
     }
@@ -206,7 +206,7 @@ class Data{
         if(qq){
             return this.getInfoByQQ(qq);
         }else{
-            log(`User with uid ${uid} not found.`);
+            Log.e(`User with uid ${uid} not found.`);
             return null;
         }
     }
@@ -221,7 +221,7 @@ class Data{
         if(group){
             return group;
         }else{
-            log(`Group with uid ${groupId} not found.`);
+            Log.e(`Group with uid ${groupId} not found.`);
             return null;
         }
     }
@@ -295,11 +295,11 @@ class Data{
     }
 
     // 更新群聊成员
-    static async __updateGroupMember(groupId, num = 30, retry = true){
+    static async __updateGroupMember(groupId, num = 3000, retry = true){
         let members = await QQNtAPI.getGroupMembers(groupId, num);
 
         if(members && members?.size > 0){
-            Log.d(`加载 群(${groupId}) 成员列表，共计${members.size}人`);
+            Log.i(`加载 群(${groupId}) 成员列表，共计${members.size}人`);
             let obj = {};
             for(let [key, value] of members) obj[key] = value;
             this.groupMembers[groupId] = obj;
@@ -326,19 +326,23 @@ class Setting{
  */
 class Reporter{
 
-    static isLoaded = false;
-    static httpReporter = null;
+    time = Date.now() / 1000;
+
+    isLoaded = false;
+    httpReporter = null;
 
     /** @type Function */
-    static webSocketReporter = null;
+    webSocketReporter = null;
 
-    static webSocketReverseReporter = null;
+    webSocketReverseReporter = null;
 
     /**
      * 上报event消息
      */
-    static reportData(data){
+    reportData(data){
         if(!this.isLoaded) return;
+
+        if(!Setting.setting.setting.reportOldMsg && data.time < this.time) return;
 
         if(Setting.setting.http.enable) this.__reportHttp(data);
 
@@ -348,27 +352,21 @@ class Reporter{
 
     }
 
-    static __reportHttp(data){
+    __reportHttp(data){
         if(this.httpReporter) this.httpReporter(data);
     }
 
-    static __reportWs(str){
+    __reportWs(str){
         if(this.webSocketReporter) this.webSocketReporter(str);
     }
 
-    static  __reportWsReverse(str){
+    __reportWsReverse(str){
         if(this.webSocketReverseReporter) this.webSocketReverseReporter(str);
     }
 }
 
-
-function log(...args){
-    console.log("\x1b[32m[OneBotAPI-Core]\x1b[0m", ...args);
-}
-
-
 module.exports = {
     Data,
     Setting,
-    Reporter
+    Reporter: new Reporter()
 };

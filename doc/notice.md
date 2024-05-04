@@ -7,6 +7,8 @@
 | 好友请求   | ✔  |    |    |
 | 好友消息撤回 | ✔  |    |    |
 | 群消息撤回  | ✔  |    |    |
+| 群成员减少  | ✔  |    |    |
+| 群成员增加  | ✔  |    |    |
 
 ## 消息结构
 
@@ -48,5 +50,37 @@
     "group_id": "123456",
     "operator_id": "123456",
     "message_id": "xxxxxx",
+}
+```
+
+### 群成员减少
+```json lines
+{  
+    "time": 1708072121,
+    "self_id": "123456",
+    
+    "post_type": "notice",
+    "notice_type": "group_decrease",
+    "sub_type": "leave",
+    
+    "user_id": "123456",
+    "group_id": "123456",
+    "operator_id": "123456"
+}
+```
+
+### 群成员增加
+```json lines
+{  
+    "time": 1708072121,
+    "self_id": "123456",
+    
+    "post_type": "notice",
+    "notice_type": "group_increase",
+    "sub_type": "invite",
+    
+    "user_id": "123456",
+    "group_id": "123456",
+    "operator_id": "123456"
 }
 ```

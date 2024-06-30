@@ -4,16 +4,18 @@ const Event = require("./event");
 const {QQNtAPI} = require("../qqnt/QQNtAPI");
 const {Log} = require("../logger");
 
+const OneBotOK = { status: "ok", retcode: 0 };
+
+function OneBotFail(code, data = ""){
+	return { status: 'fail', retcode: code, data: data };
+}
 
 class BaseApi{
 	constructor(url){
 		this.url = url;
 	}
 	async handle(postData){
-		return {
-			status: "ok",
-			retcode: 0
-		};
+		return OneBotOK;
 	}
 }
 
@@ -53,6 +55,119 @@ class NtCallAsync extends BaseApi{
 }
 
 
+class SendLike extends BaseApi{
+
+	constructor(){ super("send_like") }
+
+	async handle(postData){
+		let user = Data.getInfoByQQ(postData.user_id);
+		if(user == null) return OneBotFail(404, "好友不存在");
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelProfileLikeService/setBuddyProfileLike",
+			[{
+				"doLikeUserInfo":{
+					"friendUid": user.uid,
+					"sourceId": 71,
+					"doLikeCount": postData.times || 1,
+					"doLikeTollCount": 0
+				}
+			}, null]
+		))
+
+		if(result.succCounts > 0) return OneBotOK; else return OneBotFail(500, "今日点赞次数已达上限");
+	}
+}
+
+
+/**
+ * 获取群信息
+ * { "group_id": 123456 }
+ *
+ * result:
+ * {
+ *   code: 200,
+ *   msg: "OK",
+ *   data: {
+ *       group_id: 群号,
+ *       group_name: 群名称,
+ *       member_count: 成员数,
+ *       max_member_count: 最大成员数（群容量）
+ *   }
+ * }
+ */
+class GetGroupInfo extends BaseApi{
+
+	constructor(){ super("get_group_info") }
+
+	async handle(postData){
+		const group = Data.groups[postData.group_id]
+
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: {
+				'group_id': group.groupCode,
+				'group_name': group.groupName,
+				'member_count': group.memberCount,
+				'max_member_count': group.maxMember,
+			}
+		};
+	}
+}
+
+/**
+ * 获取群成员列表
+ * { "group_id": 123456 }
+ *
+ * result:
+ * {
+ *   code: 200,
+ *   msg: "OK",
+ *   data: [
+ *
+ *   ]
+ */
+class GetGroupMemberList extends BaseApi{
+
+	constructor(){ super("get_group_member_list") }
+
+	async handle(postData){
+		let members = await Data.getGroupMemberList(postData.group_id, true);
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: members.map((member) => { return {
+				group_id: postData.group_id,// 群号
+				user_id: member.uin,        // QQ 号
+				nickname: member.nick,      // 昵称
+				card: member.cardName,      // 群名片／备注
+				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
+			}})
+		};
+	}
+}
+
+class GetGroupMemberInfo extends BaseApi{
+	constructor(){ super("get_group_member_info") }
+
+	async handle(postData){
+		let member = await Data.getGroupMemberByQQ(postData.group_id,  postData.user_id, (postData?.no_cache || false));
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: {
+				group_id: postData.group_id,// 群号
+				user_id: member.uin,        // QQ 号
+				nickname: member.nick,      // 昵称
+				card: member.cardName,      // 群名片／备注
+				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
+			}
+		}
+	}
+}
+
 /**
  * 获取群列表
  * result:
@@ -90,7 +205,6 @@ class getGroupList extends BaseApi{
 	}
 }
 
-
 class getGroupMsgMask extends BaseApi{
 
 	constructor(){ super("get_group_msg_mask") }
@@ -124,6 +238,220 @@ class getGroupMsgMask extends BaseApi{
 		};
 	}
 }
+
+class KickMember extends BaseApi{
+
+	constructor(){ super("set_group_kick") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+		let user = await Data.getGroupMemberByQQ(postData.group_id, postData.user_id);
+		if(user == null) return OneBotFail(404, "群成员不存在");
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/kickMember",
+			[{
+				"groupCode": group.groupCode,
+				"kickUids":[ user.uid ],
+				"refuseForever": !!postData.reject_add_request,
+				"kickReason": ""
+			}, null]
+		))
+
+		if(result.errCode == 0) return OneBotOK; else return OneBotFail(result.errCode);
+	}
+}
+
+class setGroupAdmin extends BaseApi{
+
+	constructor(){ super("set_group_admin") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, "群不存在");
+
+		let user = await Data.getGroupMemberByQQ(postData.group_id, postData.user_id);
+		if(user == null) return OneBotFail(404, "群成员不存在");
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/modifyMemberRole",
+			[{
+				"groupCode": group.groupCode,
+				"uid": user.uid,
+				"role": !!postData.enable ? 3 : 2,
+			}, null]
+		))
+
+		if(result.result == 0) return OneBotOK; else return OneBotFail(result.result, result.errMsg);
+	}
+}
+
+class setGroupBan extends BaseApi{
+
+	constructor(){ super("set_group_ban") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+		let user = await Data.getGroupMemberByQQ(postData.group_id, postData.user_id);
+		if(user == null) return OneBotFail(404, "群成员不存在");
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/setMemberShutUp",
+			[{
+				groupCode: group.groupCode,
+				memList: [{ uid: user.uid, timeStamp: postData.duration | 0 }]
+			}, null]
+		))
+
+		if(result.result == 0) return OneBotOK; else return OneBotFail(500, result);
+	}
+}
+
+class setGroupWholeBan extends BaseApi{
+
+	constructor(){ super("set_group_whole_ban") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/setGroupShutUp",
+			[{
+				"groupCode": group.groupCode,
+				"shutUp": !!postData.enable
+			}, null]
+		))
+
+		if(result.result == 0) return OneBotOK; else return OneBotFail(500, result);
+	}
+}
+
+class setGroupName extends BaseApi{
+
+	constructor(){ super("set_group_name") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+
+		if(postData.group_name == null || group.group_name == ""){
+			return { status: 'fail', retcode: 500, data: '群名称不能为空' };
+		}
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/modifyGroupName",
+			[{
+				groupCode: group.groupCode,
+				groupName: postData.group_name,
+			}, null]
+		))
+
+		if(result.result == 0) return OneBotOK; else return OneBotFail(500, result);
+	}
+}
+
+class setGroupSpecialTitle extends BaseApi{
+
+	constructor(){ super("set_group_special_title") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+		let user = await Data.getGroupMemberByQQ(postData.group_id, postData.user_id);
+		if(user == null) return OneBotFail(404, '群成员不存在');
+
+		// {"errCode":0,"errMsg":"success","resultList":[{"uid":"u_uMoA","result":0}]}
+
+		return OneBotFail(404);
+	}
+}
+
+class setGroupCard extends BaseApi{
+
+	constructor(){ super("set_group_card") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+		let user = await Data.getGroupMemberByQQ(postData.group_id, postData.user_id);
+		if(user == null) return OneBotFail(404, '群成员不存在');
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/modifyMemberCardName",
+			[{
+				"groupCode": group.groupCode,
+				"uid": user.uid,
+				"cardName": postData.card || ''
+			}, null]
+		))
+
+		if(result.result == 0) return OneBotOK; else return OneBotFail(result.result);
+	}
+}
+
+class setGroupLeave extends BaseApi{
+
+	constructor(){ super("set_group_leave") }
+
+	async handle(postData){
+		let group = Data.getGroupById(postData.group_id);
+		if(group == null) return OneBotFail(404, '群不存在');
+
+		let result = (await QQNtAPI.ntCall(
+			"ns-ntApi",
+			"nodeIKernelGroupService/quitGroup",
+			[{ "groupCode": group.groupCode }, null]
+		))
+
+		if(result.errCode == 0) return OneBotOK; else return OneBotFail(result.errCode);
+	}
+}
+
+class SetGroupAddRequest extends BaseApi{
+
+	constructor(){ super("set_group_add_request") }
+
+	async handle(postData){
+		if(!('flag' in postData)) return OneBotFail(400, "Must provide 'flag'");
+
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: await QQNtAPI.ntCall(
+				"ns-ntApi",
+				"nodeIKernelGroupService/operateSysNotify",
+				[{
+					doubt: false,
+					operateMsg: {
+						operateType: postData.approve ? 1 : 2,
+						targetMsg: {
+							seq: postData.flag, // 通知序列号
+							type: postData.type || postData.sub_type,
+							// groupCode: notify.group.groupCode,
+							postscript: postData.reason,
+						},
+					}
+				}, null]
+			)
+		};
+	}
+}
+
 
 /**
  * 获取频道系统内BOT的资料
@@ -220,8 +548,22 @@ module.exports = {
 		new NtCall(),
 		new NtCallAsync(),
 
+		new SendLike(),
+
+		new GetGroupInfo(),
+		new GetGroupMemberList(),
+		new GetGroupMemberInfo(),
 		new getGroupList(),
 		new getGroupMsgMask(),
+
+		new KickMember(),
+
+		new setGroupAdmin(),
+		new setGroupBan(),
+		new setGroupWholeBan(),
+		new setGroupName(),
+		new setGroupCard(),
+		new setGroupLeave(),
 
 		new SendGuildMsg(),
 		new getGuildList(),

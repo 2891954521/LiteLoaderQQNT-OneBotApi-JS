@@ -73,6 +73,18 @@ class GuildMessage extends MessageEvent{
 	}
 }
 
+class GrayMessage extends MessageEvent{
+	eventType = 0;
+	constructor(QQNTMsg, user_id = 0, message = []){
+		super(parseInt(QQNTMsg?.msgTime || 0), QQNTMsg.msgId, user_id, message);
+		this.eventType = QQNTMsg.chatType;
+		if(this.eventType == 2) this.group_id = QQNTMsg.peerUid;
+		this.raw_message = JSON.stringify(QQNTMsg.elements[0].grayTipElement, (key, value) => {
+			if( value == null) return undefined; else return value;
+		});
+	}
+}
+
 class RecallMessage extends Event{
 	constructor(time, message_id, notice_type, user_id, operator_id, group_id = -1){
 		super(time, message_id, "notice");
@@ -120,6 +132,10 @@ class RecallMessage extends Event{
  * @return { MessageEvent | null }
  */
 async function parseMessage(QQNTMsg){
+	if(QQNTMsg.msgType == 5){
+		return new GrayMessage(QQNTMsg)
+	}
+
 	let user_id = null;
 
 	if(QQNTMsg.chatType === 1){

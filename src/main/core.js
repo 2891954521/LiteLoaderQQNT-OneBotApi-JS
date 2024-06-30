@@ -231,7 +231,7 @@ class Data{
      * 根据 uid 获取群成员信息
      * @param groupId {string} 群号
      * @param uid {string} 用户uid
-     * @return {GroupMember | null}
+     * @return {Promise<GroupMember|null>}
      */
     static async getGroupMemberByUid(groupId, uid){
         let members = await this.__getGroupMembers(groupId);
@@ -244,7 +244,7 @@ class Data{
      * @param groupId 群号
      * @param qq {string}
      * @param force 是否强制更新
-     * @return {GroupMember | null}
+     * @return {Promise<GroupMember|null>}
      */
     static async getGroupMemberByQQ(groupId, qq, force = false){
         let members = await this.getGroupMemberList(groupId, force);
@@ -296,6 +296,8 @@ class Data{
 
     // 更新群聊成员
     static async __updateGroupMember(groupId, num = 3000, retry = true){
+        Log.i(`尝试加载 群(${groupId}) 成员列表，加载${num}人`);
+
         let members = await QQNtAPI.getGroupMembers(groupId, num);
 
         if(members && members?.size > 0){

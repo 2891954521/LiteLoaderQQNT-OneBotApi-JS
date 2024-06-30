@@ -320,87 +320,6 @@ const oneBot11API = {
 		};
 	},
 
-
-	/**
-	 * 获取群信息
-	 * { "group_id": 123456 }
-	 *
-	 * result:
-	 * {
-	 *   code: 200,
-	 *   msg: "OK",
-	 *   data: {
-	 *       group_id: 群号,
-	 *       group_name: 群名称,
-	 *       member_count: 成员数,
-	 *       max_member_count: 最大成员数（群容量）
-	 *   }
-	 * }
-	 */
-	'get_group_info': (postData) => {
-		let group = Data.groups[postData.group_id];
-		return {
-			status: 'ok',
-			retcode: 0,
-			data: {
-				'group_id': group.groupCode,
-				'group_name': group.groupName,
-				'member_count': group.memberCount,
-				'max_member_count': group.maxMember,
-			}
-		};
-	},
-
-	/**
-	 * 获取群成员列表
-	 * { "group_id": 123456 }
-	 *
-	 * result:
-	 * {
-	 *   code: 200,
-	 *   msg: "OK",
-	 *   data: [
-	 *
-	 *   ]
-	 */
-	'get_group_member_list': async (postData) => {
-		let members = await Data.getGroupMemberList(postData.group_id, true);
-		return {
-			status: 'ok',
-			retcode: 0,
-			data: members.map((member) => { return {
-				group_id: postData.group_id,// 群号
-				user_id: member.uin,        // QQ 号
-				nickname: member.nick,      // 昵称
-				card: member.cardName,      // 群名片／备注
-				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
-			}})
-		};
-	},
-
-	/**
-	 * 获取群成员信息
-	 * {
-	 * 	group_id: 123456,
-	 * 	user_id: 123456,
-	 * 	no_cache: false
-	 * }
-	 */
-	'get_group_member_info': async (postData) => {
-		let member = await Data.getGroupMemberByQQ(postData.group_id,  postData.user_id, (postData?.no_cache || false));
-		return {
-			status: 'ok',
-			retcode: 0,
-			data: {
-				group_id: postData.group_id,// 群号
-				user_id: member.uin,        // QQ 号
-				nickname: member.nick,      // 昵称
-				card: member.cardName,      // 群名片／备注
-				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
-			}
-		}
-	},
-
 	/**
 	 * 处理加好友请求
 	 * {
@@ -433,16 +352,9 @@ const oneBot11API = {
 		}
 	},
 
-	// send_like 发送好友赞
-	// set_group_kick 群组踢人
-	// set_group_ban 群组单人禁言
 	// set_group_anonymous_ban 群组匿名用户禁言
-	// set_group_whole_ban 群组全员禁言
-	// set_group_admin 群组设置管理员
 	// set_group_anonymous 群组匿名
 	// set_group_card 设置群名片（群备注）
-	// set_group_name 设置群名
-	// set_group_leave 退出群组
 	// set_group_special_title 设置群组专属头衔
 	// set_group_add_request 处理加群请求／邀请
 	// get_stranger_info 获取陌生人信息

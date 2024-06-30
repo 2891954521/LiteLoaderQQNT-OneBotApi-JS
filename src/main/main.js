@@ -13,6 +13,7 @@ const httpReporter = require("../network/httpReporter");
 
 const { QQNtAPI} = require('../qqnt/QQNtAPI');
 const IPCHandle = require('../qqnt/IpcHandle');
+const {oneBot11API} = require("../oneBot11/oneBot11");
 
 
 let isLoaded = false;
@@ -123,6 +124,17 @@ function onLoad(plugin) {
 
     ipcMain.on(IPCAction.ACTION_RESTART_WS_REVERSE_SERVER, (event, params) => wsReverse.restartWsClient(params));
     ipcMain.on(IPCAction.ACTION_STOP_WS_REVERSE_SERVER, (event) => wsReverse.stopWsClient());
+
+    ipcMain.handle(IPCAction.ACTION_HTTP_TEST, async (event, url) => {
+        try{
+            return await oneBot11API[url]({})
+        } catch(e){
+            return {
+                'code': -1,
+                'msg': e.toString()
+            }
+        }
+    });
 }
 
 

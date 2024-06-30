@@ -55,6 +55,11 @@ module.exports = {
          * 获取服务运行状态
          */
         ACTION_SERVER_STATUS: 'one_bot_api_server_status',
+
+        /**
+         * API测试
+         */
+        ACTION_HTTP_TEST: 'one_bot_api_http_test',
     },
 
     // 默认设置文件

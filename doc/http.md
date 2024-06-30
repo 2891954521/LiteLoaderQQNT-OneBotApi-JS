@@ -28,19 +28,19 @@
 | [`set_friend_add_request`](#set_friend_add_request)       |  ✓   | 处理加好友请求       |
 | [`set_group_add_request`](#set_group_add_request)         |      | 处理加群请求/邀请     |
 | 好友操作                                                      |      |               |
-| [`send_like`](#send_like)                                 |      | 发送好友赞         |
+| [`send_like`](#send_like)                                 |  ✓   | 发送好友赞         |
 | 群操作                                                       |      |               |
-| [`set_group_kick`](#set_group_kick)                       |      | 群组踢人          |
+| [`set_group_kick`](#set_group_kick)                       |  ✓   | 群组踢人          |
 | [`set_group_anonymous`](#set_group_anonymous)             |      | 群组匿名          |
-| [`set_group_admin`](#set_group_admin)                     |      | 群组设置管理员       |
-| [`set_group_ban`](#set_group_ban)                         |      | 群组单人禁言        |
-| [`set_group_whole_ban`](#set_group_whole_ban)             |      | 群组全员禁言        |
+| [`set_group_admin`](#set_group_admin)                     |  ✓   | 群组设置管理员       |
+| [`set_group_ban`](#set_group_ban)                         |  ✓   | 群组单人禁言        |
+| [`set_group_whole_ban`](#set_group_whole_ban)             |  ✓   | 群组全员禁言        |
 | [`set_group_anonymous_ban`](#set_group_anonymous_ban)     |      | 群组匿名用户禁言      |
 | [`get_group_honor_info`](#get_group_honor_info)           |      | 获取群荣誉信息       |
-| [`set_group_name`](#set_group_name)                       |      | 设置群名          |
+| [`set_group_name`](#set_group_name)                       |  ✓   | 设置群名          |
 | [`set_group_special_title`](#set_group_special_title)     |      | 设置群组专属头衔      |
-| [`set_group_card`](#set_group_card)                       |      | 设置群名片群备注      |
-| [`set_group_leave`](#set_group_leave)                     |      | 退出群组          |
+| [`set_group_card`](#set_group_card)                       |  ✓   | 设置群名片群备注      |
+| [`set_group_leave`](#set_group_leave)                     |  ✓   | 退出群组          |
 | 频道                                                        |      |               |
 | [`get_guild_service_profile`](#get_guild_service_profile) |  ✓   | 获取频道系统内BOT的资料 |
 | [`get_guild_list`](#get_guild_list)                       |  ✓   | 获取频道列表        |
@@ -314,6 +314,60 @@
     "approve": true  // 是否接受
 }
 ```
+
+## `send_like`
+### 发送好友赞
+
+**请求体**
+```json lines
+{
+    "user_id": "123456", // 对方 QQ 号
+    "times": 1           // 赞的次数，每个好友每天最多 10 次
+}
+```
+
+## `set_group_kick`
+### 群组踢人
+**请求体**
+```json lines
+{
+    "group_id": "123456",       // 群号
+    "user_id": "123456",        // 要踢的群成员QQ号
+    "reject_add_request": false	// 拒绝此人的加群请求
+}
+```
+
+## `set_group_ban`
+### 群组单人禁言
+**请求体**
+```json lines
+{
+    "group_id": "123456", // 群号
+    "user_id": "123456",  // 要禁言的群成员QQ号
+    "duration": 60	      // 禁言时长，单位秒，0 表示取消禁言
+}
+```
+
+## `set_group_whole_ban`
+### 群组全员禁言
+**请求体**
+```json lines
+{
+    "group_id": "123456", // 群号
+    "enable": true,       // 是否禁言
+}
+```
+
+## `set_group_name`
+### 设置群名
+**请求体**
+```json lines
+{
+    "group_id": "123456",   // 群号
+    "group_name": "群名称",  // 新群名
+}
+```
+
 
 # 频道
 频道API均参考 [Go-cqhttp](https://docs.go-cqhttp.org/api/guild.html) 文档

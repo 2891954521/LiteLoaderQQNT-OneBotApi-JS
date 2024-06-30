@@ -216,6 +216,12 @@ async function onSettingWindowCreated(view){
 		configData.debug.ipc = enable;
 		ipcRenderer.send(IPCAction.ACTION_SET_CONFIG, configData);
 	});
+
+	bindButton(view, ".debug #get_group_msg_mask", () => {
+		ipcRenderer.invoke(IPCAction.ACTION_HTTP_TEST, 'get_group_msg_mask').then(result => {
+			view.querySelector('.debug #apiTestResult').innerHTML = JSON.stringify(result, null, 2);
+		});
+	});
 }
 
 
@@ -237,12 +243,6 @@ function updateStatus(view, data){
 		view.title = data.msg;
 		view.innerHTML = `<font color="red">${data.msg}</font>`;
 	}else view.innerHTML = '<font color="gray">未运行</font>';
-}
-
-
-
-function print(...args){
-	ipcRenderer.send("one_bot_api_log", args);
 }
 
 

@@ -16,11 +16,16 @@
     <setting-section data-title="HTTP设置" class="http">
         <setting-panel>
             <setting-list data-direction="column">
-                <setting-item>
-                    <setting-text>HTTP服务器状态</setting-text>
-                    <setting-text data-type="secondary" id="httpServerStatus">正在获取</setting-text>
-                    <setting-button data-type="secondary" id="restartHTTPServer"> 重新启动</setting-button>
-                </setting-item>
+                <setting-item data-direction="column">
+                    <div>
+                        <setting-text>HTTP API</setting-text>
+                        <setting-text data-type="secondary" id="httpServerStatus">正在获取</setting-text>
+                    </div>
+                    <div style="display: flex">
+                        <setting-button data-type="secondary" id="restartHTTPServer"> 重新启动</setting-button>
+                        <div style="padding-left: 20px"> <setting-switch id="enableHttpServer"></setting-switch></div>
+                     </div>
+                 </setting-item>
 
                 <setting-item>
                     <setting-text>HTTP服务端端口</setting-text>
@@ -185,7 +190,7 @@
 
     <setting-section data-title="调试" class="debug">
         <setting-panel>
-            <setting-list is-collapsible data-direction="column"  data-title="调试模式">
+            <setting-list is-collapsible data-direction="column"  data-title="调试模式（没事别开）">
 
                 <setting-item>
                     <div>

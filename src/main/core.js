@@ -346,7 +346,7 @@ class Reporter{
 
         if(!Setting.setting.setting.reportOldMsg && data.time < this.time) return;
 
-        if(Setting.setting.http.enable) this.__reportHttp(data);
+        if(Setting.setting.http.enable || Setting.setting.http.enableReport) this.__reportHttp(data);
 
         let str = JSON.stringify(data);
         if(Setting.setting.ws.enable) this.__reportWs(str);

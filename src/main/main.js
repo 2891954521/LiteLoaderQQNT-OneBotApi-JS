@@ -91,8 +91,8 @@ function onLoad(plugin) {
             // 	"result": 0, "errMsg": "", "number": 2
             // }
 
-            httpServer.startHttpServer(Setting.setting.http.port);
-            if(Setting.setting.http.enable) httpReporter.startHttpReport();
+            if(Setting.setting.http.enableServer) httpServer.startHttpServer(Setting.setting.http.port);
+            if(Setting.setting.http.enable || Setting.setting.http.enableReport) httpReporter.startHttpReport();
             if(Setting.setting.ws.enable) wsServer.startWsServer(Setting.setting.ws.port);
             if(Setting.setting.wsReverse.enable) wsReverse.startWsClient(Setting.setting.wsReverse);
             Reporter.isLoaded = true;
@@ -108,9 +108,18 @@ function onLoad(plugin) {
 
     ipcMain.on(IPCAction.ACTION_SET_CONFIG, (event, setting) => {
         Setting.setting = setting;
-        if(Setting.setting.http.enable){
+        if(Setting.setting.http.enableServer){
+            Log.i('start http api');
+            httpServer.startHttpServer(Setting.setting.http.port);
+        }else{
+            Log.i('stop http api');
+            httpServer.stopHttpServer().then()
+        }
+        if(Setting.setting.http.enable || Setting.setting.http.enableReport){
+            Log.i('start http report');
             httpReporter.startHttpReport()
         }else{
+            Log.i('stop http report');
             httpReporter.stopHttpReport()
         }
         Log.setDebug(setting.debug.debug, setting.debug.ipc);

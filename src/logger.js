@@ -28,7 +28,7 @@ class Log {
 			let logFile = path.join(this.logPath, `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()} ${d.getHours()}-${d.getMinutes()}-${d.getSeconds()}.log`);
 
 			this.fileStream = null
-			// this.fileStream = fs.createWriteStream(logFile);
+			this.fileStream = fs.createWriteStream(logFile);
 
 			Log.i(`debug mode is on, debug log to ${logFile}`)
 		}

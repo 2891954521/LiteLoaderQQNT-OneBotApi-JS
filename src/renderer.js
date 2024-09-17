@@ -2,6 +2,8 @@ const ipcRenderer = window.OneBotApi.ipcRenderer_OneBot;
 
 const pluginPath = LiteLoader.plugins['OneBotApi-JS'].path.plugin;
 
+let settingHtml = "";
+
 async function onConfigView(view){
 
 }
@@ -12,7 +14,11 @@ async function onSettingWindowCreated(view){
 
 	const configData = await OneBotApi.settingData();
 
-	view.innerHTML = await (await fetch(`local:///${pluginPath}/src/common/setting.html`)).text();
+	if(settingHtml.length == 0){
+		settingHtml = await (await fetch(`local:///${pluginPath}/src/common/setting.html`)).text()
+	}
+
+	view.innerHTML = settingHtml;
 
 	const wsStatus = view.querySelector('.ws #wsServerStatus');
 	const httpStatus = view.querySelector('.http #httpServerStatus');

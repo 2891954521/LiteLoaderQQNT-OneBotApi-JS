@@ -35,70 +35,16 @@ class Data{
      */
     static userMap = {};
 
-    /**
-     * @typedef User
-     * @property {string} uid - u_uMB7xxxxxx
-     * @property {string} qid - QID
-     * @property {string} uin - QQ号
-     * @property {string} nick - 昵称
-     * @property {string} remark - 备注
-     * @property {string} longNick - 签名
-     * @property {string} avatarUrl - 头像URL
-     * @property {int} sex - 性别
-     *
-     * @property {number} birthday_year - 生日年份
-     * @property {number} birthday_month - 生日月份
-     * @property {number} birthday_day - 生日日期
-     *
-     * @property {string} topTime - 顶部时间
-     *
-     * @property {boolean} isBlock - 是否被阻止
-     * @property {boolean} isMsgDisturb - 是否消息打扰
-     * @property {boolean} isSpecialCareOpen - 是否开启特别关心
-     * @property {boolean} isSpecialCareZone - 是否特别关心区域
-     *
-     * @property {string} ringId - 铃声ID
-     * @property {number} status - 状态
-     * @property {number} extStatus - 扩展状态
-     * @property {number} categoryId - 类别ID
-     * @property {boolean} onlyChat - 是否仅聊天
-     * @property {boolean} qzoneNotWatch - 是否不观看Qzone
-     * @property {boolean} qzoneNotWatched - Qzone是否被观看
-     *
-     * @property {boolean} vipFlag - 是否是VIP
-     * @property {boolean} yearVipFlag - 是否是年度VIP
-     * @property {boolean} svipFlag - 是否是SVIP
-     * @property {number} vipLevel - VIP等级
-     */
+
     /**
      * QQ号 -> 用户
      * @type {Object.<string, User>}
      */
     static friends = {};
 
-    /**
-     * @typedef {Object} Group
-     * @property {string} groupCode - 群号
-     * @property {string} groupName - 群名称
-     * @property {number} maxMember - 最大成员数
-     * @property {number} memberCount - 成员数
-     * @property {string} remarkName - 备注名称
-     *
-     * @property {boolean} isTop - 是否置顶
-     * @property {number} groupStatus - 群组状态
-     * @property {number} memberRole - 成员角色
-     * @property {string} toppedTimestamp - 置顶时间戳
-     * @property {number} privilegeFlag - 权限标志
-     * @property {boolean} isConf - 是否是会议群
-     * @property {boolean} hasModifyConfGroupFace - 是否可以修改会议群头像
-     * @property {boolean} hasModifyConfGroupName - 是否可以修改会议群名称
-     * @property {boolean} hasMemo - 是否有群公告
-     * @property {string} groupShutupExpireTime - 群禁言到期时间
-     * @property {string} personShutupExpireTime - 个人禁言到期时间
-     * @property {string} discussToGroupUin - 讨论组转群目标 UIN
-     * @property {number} discussToGroupMaxMsgSeq - 讨论组转群消息最大序列号
-     * @property {number} discussToGroupTime - 讨论组转群时间
-     */
+
+    static userInfo = new LimitedHashMap(100);
+
     /**
      * 群号 -> 群聊信息
      * @type {Object.<string, Group>}
@@ -110,22 +56,7 @@ class Data{
      */
     static guilds = {};
 
-    /**
-     * @typedef GroupMember
-     * @property {string} uid - u_uMB7xxxxxx
-     * @property {string} qid - QID
-     * @property {string} uin - QQ号
-     * @property {string} nick - 昵称
-     * @property {string} remark - 备注
-     * @property {int} cardType -
-     * @property {string} cardName - 群昵称
-     * @property {int} role - 群主:4, 管理员:3, 群员:2
-     * @property {string} avatarPath - 头像URL
-     * @property {int} shutUpTime -
-     * @property {boolean} isDelete -
-     * @property {boolean} isSpecialConcerned -
-     * @property {boolean} isRobot -
-     */
+
     /**
      * 群成员的信息
      * 群号 -> { 群成员列表 -> 群成员信息 }
@@ -252,12 +183,24 @@ class Data{
         return member || (Log.w(`getGroupMemberByQQ: 用户 QQ(${qq}) 在 群(${groupId}) 内不存在`), null);
     }
 
+    static async getGroupMemberInfo(groupId, qq, force = false){
+        let member = await this.getGroupMemberByQQ(groupId, qq, false);
+        if(!member) return null;
+
+        let info = this.userInfo[member.uin];
+        if(force || !info){
+            info = await QQNtAPI.getUserInfoByUid(member.uid);
+            this.userInfo[member.uin] = info;
+        }
+        return info;
+    }
+
 
     /**
      * 获取群成员列表
      * @param groupId 群号
      * @param force 是否强制更新
-     * @return {Promise<Array<GroupMember>>}
+     * @return {Promise<GroupMember[]>}
      */
     static async getGroupMemberList(groupId, force = false) {
         let group = this.getGroupById(groupId);
@@ -267,12 +210,17 @@ class Data{
         }
 
         if(!force){
+            Log.d(`从缓存获取群成员列表`);
             let members = this.groupMembers[group.groupCode];
             if(members){
                 let r = Object.values(members);
-                if(r.length > 0) return r;
+                if(r.length > 0){
+                    Log.d(`返还缓存群成员列表`);
+                    return r;
+                }
             }
         }
+        Log.d(`联网刷新群成员列表 force = ${force}`);
         await this.__updateGroupMember(group.groupCode, group.memberCount)
         return Object.values(this.groupMembers[group.groupCode] || {});
     }

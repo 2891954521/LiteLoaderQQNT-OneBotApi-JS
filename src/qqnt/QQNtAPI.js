@@ -38,20 +38,22 @@ class QQNtAPI {
      * @param {string} callBackCmdName 回调的CmdName
      * @param {(Object) => Boolean} isMyResult 判断收到的消息是否为需要的消息
      * @param {boolean} registerAfterCall 是否在调用之前注册回调
+     * @param {(Object) => Object} afterCallback 在Promise回调之前执行的操作(此时已经拿到了请求结果)
      * @param {string} webContentsId
      * @return {Promise<unknown>}
      */
     ntCallAsync(eventName, cmdName, args= [], callBackCmdName,
         isMyResult = () => { return true },
         registerAfterCall = false,
-        webContentsId = '2'
+        webContentsId = '2',
+        afterCallback = (obj) => { return obj },
     ){
         return new Promise((resolve, reject) => {
             const uuid = crypto.randomUUID();
 
             function IsMyResult(cmdObject){
                 if(isMyResult(cmdObject)){
-                    resolve(cmdObject);
+                    resolve(afterCallback(cmdObject));
                     return true;
                 }else{
                     return false;
@@ -120,7 +122,14 @@ class QQNtAPI {
             "ns-ntApi", "nodeIKernelProfileService/getUserDetailInfo",
             [{"uid": uid.toString()}, undefined],
             "nodeIKernelProfileListener/onProfileDetailInfoChanged",
-            (cmdObject) => { return cmdObject.payload?.info?.uid == uid }
+            (cmdObject) => {
+                let info = cmdObject.payload?.info
+                if(!info) return false
+                return info?.uid == uid && info?.uin != "0"
+            },
+            false,
+            "2",
+            (obj) => { return obj.payload.info }
         )
     }
 

@@ -54,6 +54,30 @@ class NtCallAsync extends BaseApi{
 	}
 }
 
+/**
+ * 获取好友列表<br>
+ * result:
+ *       user_id: QQ号,
+ *       nickname: 昵称,
+ *       remark: 备注
+ */
+class GetFriendList extends BaseApi {
+	constructor(){ super("get_friend_list") }
+
+	async handle(postData){
+		return {
+			status: 'ok',
+			retcode: 0,
+			data: Object.values(Data.friends).map(friend => {
+				return {
+					user_id: friend.uin,
+					nickname: friend.nick,
+					remark: friend.remark
+				}
+			})
+		};
+	}
+}
 
 class SendLike extends BaseApi{
 
@@ -134,7 +158,7 @@ class GetGroupMemberList extends BaseApi{
 	constructor(){ super("get_group_member_list") }
 
 	async handle(postData){
-		let members = await Data.getGroupMemberList(postData.group_id, true);
+		let members = await Data.getGroupMemberList(postData.group_id, (postData?.no_cache || false));
 		return {
 			status: 'ok',
 			retcode: 0,
@@ -153,7 +177,12 @@ class GetGroupMemberInfo extends BaseApi{
 	constructor(){ super("get_group_member_info") }
 
 	async handle(postData){
-		let member = await Data.getGroupMemberByQQ(postData.group_id,  postData.user_id, (postData?.no_cache || false));
+		let member = await Data.getGroupMemberByQQ(postData.group_id,  postData.user_id, false);
+		if(!member) return OneBotFail(404, "用户在群聊中不存在");
+
+		let info = await Data.getGroupMemberInfo(postData.group_id,  postData.user_id, false);
+		member.info = info
+
 		return {
 			status: 'ok',
 			retcode: 0,
@@ -162,7 +191,14 @@ class GetGroupMemberInfo extends BaseApi{
 				user_id: member.uin,        // QQ 号
 				nickname: member.nick,      // 昵称
 				card: member.cardName,      // 群名片／备注
+				level: member.memberRealLevel, // 群等级
 				role: member.role == 4 ? 'owner' : (member.role == 3 ? 'admin' : (member.role == 2 ? 'member' : 'unknown')),	// 角色，owner 或 admin 或 member
+
+				sex: info?.sex == 1 ? "male" : (info?.sex == 2 ? "female" : "unknown"),
+				age: new Date().getFullYear() - info?.birthday_year,
+				area: `${info?.country} ${info?.province} ${info?.city}`,
+
+				raw: member
 			}
 		}
 	}
@@ -547,6 +583,8 @@ module.exports = {
 
 		new NtCall(),
 		new NtCallAsync(),
+
+		new GetFriendList(),
 
 		new SendLike(),
 

@@ -99,7 +99,7 @@
 ```
 
 
-## `ge_msg`
+## `get_msg`
 ### 获取消息
 只支持获取Bot框架启动之后收到的消息，无法获取历史消息
 
@@ -255,6 +255,7 @@
 ```json lines
 {
     "group_id": 123456, // 群号
+    "no_cache": false   // 是否使用缓存
 }
 ```
 
@@ -296,8 +297,13 @@
         "group_id": 123456, // 群号
         "user_id": 123456,  // QQ 号
         "nickname": "",     // 昵称,
-        "card": "",     // 群名片／备注,
-        "role": "",     // 角色，owner 或 admin 或 member
+        "card": "",         // 群名片／备注,
+        "level": 1,         // 群等级
+        "role": "",         // 角色，owner 或 admin 或 member
+        "sex": "male",      // 性别，male 或 female 或 unknown
+        "age": 1,           // 年龄
+        "area": "中国 浙江 杭州", // 所在地
+        "raw": {}           // 原始数据，包括群成员信息和用户信息
     }
 }
 ```

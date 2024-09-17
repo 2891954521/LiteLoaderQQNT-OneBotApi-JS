@@ -290,35 +290,6 @@ const oneBot11API = {
 		};
 	},
 
-	/**
-	 * 获取好友列表
-	 * result:
-	 * {
-	 *   code: 200,
-	 *   msg: "OK",
-	 *   data: [
-	 *     {
-	 *       user_id: QQ号,
-	 *       nickname: 昵称,
-	 *       remark: 备注
-	 *     },
-	 *     ...
-	 *   ]
-	 * }
-	 */
-	'get_friend_list': () => {
-		return {
-			status: 'ok',
-			retcode: 0,
-			data: Object.values(Data.friends).map(friend => {
-				return {
-					user_id: friend.uin,
-					nickname: friend.nick,
-					remark: friend.remark
-				}
-			})
-		};
-	},
 
 	/**
 	 * 处理加好友请求

@@ -79,7 +79,7 @@ class UpdateFriendList extends BaseApi{
 
 
 /**
- * 更新群信息
+ * 更新群信息，包括群人数变动
  */
 class UpdateGroupList extends BaseApi{
 	constructor(){ super("onGroupListUpdate", "nodeIKernelGroupListener/onGroupListUpdate"); }

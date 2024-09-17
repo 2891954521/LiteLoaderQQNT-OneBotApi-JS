@@ -108,6 +108,7 @@ function onLoad(plugin) {
 
     ipcMain.on(IPCAction.ACTION_SET_CONFIG, (event, setting) => {
         Setting.setting = setting;
+        Log.setDebug(setting.debug.debug, setting.debug.ipc);
         if(Setting.setting.http.enableServer){
             Log.i('start http api');
             httpServer.startHttpServer(Setting.setting.http.port);
@@ -122,7 +123,6 @@ function onLoad(plugin) {
             Log.i('stop http report');
             httpReporter.stopHttpReport()
         }
-        Log.setDebug(setting.debug.debug, setting.debug.ipc);
         utils.saveSetting(setting);
     });
 
@@ -158,9 +158,8 @@ function onBrowserWindowCreated(window){
 
     if(window.webContents.__qqntim_original_object){
         window.webContents.__qqntim_original_object.send = patched_send;
-    }else{
-        window.webContents.send = patched_send;
     }
+    window.webContents.send = patched_send;
 
     const original_ipc_message = window.webContents._events["-ipc-message"]?.[0] || window.webContents._events["-ipc-message"];
     const proxyEvents = new Proxy(original_ipc_message, {
